@@ -1,0 +1,42 @@
+(http.request.uri.path contains "/wp-admin/admin-ajax.php") or
+(http.request.uri.path contains "/wp-login.php") or
+(http.request.uri.path contains "/xmlrpc.php") or
+(http.request.uri.path contains "/wp-comments-post.php") or
+(http.request.uri.path contains "/my-account/") or
+(http.request.uri.path contains "/checkout/") or
+(http.request.uri.path contains "/wp-json/") or
+(http.request.uri.path contains "/feed/") or
+(http.request.uri.path contains "/install.php") or
+(http.request.uri.path contains "/administrator/") or
+(http.request.uri.path contains "/admin/") or
+(http.request.uri.path contains "/user/login") or
+(http.request.uri.path contains "/user/password") or
+(http.request.uri.path contains "/backend/") or
+(http.request.uri.path contains "phpinfo.php") or
+(http.request.uri.path contains "c99.php") or
+(http.request.uri.path contains "r57.php") or
+(http.request.uri.path contains "webshell.php") or
+(http.request.uri.path contains "/phpmyadmin/") or
+(http.request.uri.path contains "/pma/") or
+(http.request.uri.path contains "/.env") or
+(http.request.uri.path contains "/.git/HEAD") or
+(http.request.uri.path contains ".sql") or
+(http.request.uri.path contains ".bak") or
+(http.request.uri.path contains ".zip") or
+(http.request.uri.path contains ".tar.gz") or
+(http.request.uri.path contains ".log") or
+(http.request.uri.path contains "/.well-known/") or
+(http.request.uri.path contains "/apismtp.php") or
+(http.request.uri.path contains "/db.php") or
+(http.request.uri.path contains "/apikey.php.suspected") or
+(http.request.uri.path contains "/apikey.php?") or
+(http.request.uri.path contains "/ALFA_DATA/") or
+(http.request.uri.path contains "/perl.alfa") or
+(http.request.uri.path contains "/wp-content/RxR_") or
+(http.request.uri.path contains "/core-stab/") or
+(http.request.uri.path contains "/wp-content/uploads/" and http.request.uri.path contains ".php") or
+(http.request.uri.path contains "/wp-includes/" and http.request.uri.path contains ".php") or
+(http.request.uri.path contains "/wp-content/themes/" and http.request.uri.path contains ".php") or
+(http.request.uri.path contains "/wp-content/plugins/" and http.request.uri.path contains ".php" and not http.request.uri.path contains "index.php") or
+(http.request.uri.path contains "/components/" and http.request.uri.path contains ".php") or
+(http.request.uri.path contains "/modules/" and http.request.uri.path contains ".php")
