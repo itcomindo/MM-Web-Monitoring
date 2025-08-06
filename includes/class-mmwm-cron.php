@@ -58,9 +58,17 @@ class MMWM_Cron
         }
 
         $check_type = get_post_meta($post_id, '_mmwm_check_type', true);
+
         $args = [
             'timeout'    => 20,
-            'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+            'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+            'headers'    => [
+                'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Language' => 'en-US,en;q=0.9',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Cache-Control'   => 'no-cache',
+                'Pragma'          => 'no-cache',
+            ],
         ];
 
         $response = wp_remote_get($url, $args);
@@ -98,45 +106,50 @@ class MMWM_Cron
         update_post_meta($post_id, '_mmwm_status', $new_status);
         update_post_meta($post_id, '_mmwm_status_reason', $reason);
 
-        // Kirim email hanya jika statusnya berubah
-        if ($old_status !== $new_status && !empty($old_status)) {
+        $notification_trigger = get_post_meta($post_id, '_mmwm_notification_trigger', true) ?: 'always';
+        $should_send = false;
 
-            $notification_trigger = get_post_meta($post_id, '_mmwm_notification_trigger', true) ?: 'always';
+        if ($notification_trigger === 'always') {
+            $should_send = true;
+        } elseif ($notification_trigger === 'when_error_only') {
+            $is_new_status_error = in_array($new_status, ['DOWN', 'CONTENT_ERROR', 'Invalid URL']);
+            $was_old_status_error = in_array($old_status, ['DOWN', 'CONTENT_ERROR', 'Invalid URL']);
 
-            $should_send = false;
-
-            if ($notification_trigger === 'always') {
+            if ($is_new_status_error || ($was_old_status_error && $new_status === 'UP')) {
                 $should_send = true;
-            } elseif ($notification_trigger === 'when_error_only') {
-                $error_statuses = ['DOWN', 'CONTENT_ERROR', 'Invalid URL'];
-                if (in_array($new_status, $error_statuses)) {
-                    $should_send = true;
-                }
-            }
-
-            if ($should_send) {
-                $this->send_notification_email($post_id, $old_status, $new_status, $reason);
             }
         }
+
+        $email_log = 'Email not sent (conditions not met).';
+        if ($should_send) {
+            $email_sent = $this->send_notification_email($post_id, $old_status, $new_status, $reason);
+
+            if ($email_sent) {
+                $email_log = 'Email report sent successfully.';
+            } else {
+                $email_log = 'Error: Failed to send email. Check WP Mail SMTP logs.';
+            }
+        }
+
+        update_post_meta($post_id, '_mmwm_email_log', $email_log);
     }
 
     private function send_notification_email($post_id, $old_status, $new_status, $reason)
     {
         $url = get_post_meta($post_id, '_mmwm_target_url', true);
         $email_to = get_post_meta($post_id, '_mmwm_notification_email', true) ?: get_option('admin_email');
+        $subject = sprintf('Monitoring Report for %s: %s', get_the_title($post_id), $new_status);
 
-        $subject = sprintf(__('Status Website Change for %s: %s', 'mm-web-monitoring'), get_the_title($post_id), $new_status);
-
-        $body  = sprintf(__("Halo,\n\nStatus monitor untuk website %s (%s) telah berubah.\n\n", 'mm-web-monitoring'), get_the_title($post_id), $url);
-        $body .= sprintf(__("Status Sebelumnya: %s\n", 'mm-web-monitoring'), $old_status);
-        $body .= sprintf(__("Status Baru: %s\n", 'mm-web-monitoring'), $new_status);
-        $body .= sprintf(__("Waktu Pengecekan: %s\n", 'mm-web-monitoring'), wp_date('Y-m-d H:i:s', time()));
-        if (! empty($reason)) {
-            $body .= sprintf(__("Detail: %s\n", 'mm-web-monitoring'), $reason);
+        $body  = "Monitoring Report:\n\n";
+        $body .= "Website: " . get_the_title($post_id) . " (" . $url . ")\n";
+        $body .= "Previous Status: " . ($old_status ?: 'N/A') . "\n";
+        $body .= "Current Status: " . $new_status . "\n";
+        $body .= "Check Time: " . wp_date('Y-m-d H:i:s', time()) . "\n";
+        if (!empty($reason)) {
+            $body .= "Details: " . $reason . "\n";
         }
-        $body .= __("\nTerima kasih,\nMM Web Monitoring Plugin", 'mm-web-monitoring');
 
-        wp_mail($email_to, $subject, $body);
+        return wp_mail($email_to, $subject, $body);
     }
 
     private function find_element_in_html($html, $selector)
@@ -164,34 +177,18 @@ class MMWM_Cron
     public function handle_ajax_run_check_now()
     {
         check_ajax_referer('mmwm_ajax_nonce');
-        if (! current_user_can('edit_posts')) {
+        if (!current_user_can('edit_posts')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            return;
         }
+
         if (isset($_POST['post_id'])) {
             $post_id = intval($_POST['post_id']);
             $this->perform_check($post_id);
 
-            $new_status = get_post_meta($post_id, '_mmwm_status', true);
-            $last_check_timestamp = get_post_meta($post_id, '_mmwm_last_check', true);
-
-            $status_color = '#777';
-            if ($new_status === 'UP') $status_color = '#28a745';
-            if ($new_status === 'DOWN') $status_color = '#dc3545';
-            if ($new_status === 'CONTENT_ERROR') $status_color = '#ffc107';
-
-            $last_check_html = 'N/A';
-            if ($last_check_timestamp) {
-                $last_check_html = sprintf(
-                    '<span title="%s">%s</span>',
-                    esc_attr(wp_date('Y-m-d H:i:s', $last_check_timestamp)),
-                    esc_html(human_time_diff($last_check_timestamp) . ' ago')
-                );
-            }
-
             wp_send_json_success([
-                'status'          => $new_status,
-                'status_color'    => $status_color,
-                'last_check_html' => $last_check_html,
+                'status' => get_post_meta($post_id, '_mmwm_status', true),
+                'email_log' => get_post_meta($post_id, '_mmwm_email_log', true),
             ]);
         }
         wp_send_json_error(['message' => 'Invalid Post ID.']);
@@ -200,8 +197,9 @@ class MMWM_Cron
     public function handle_ajax_update_monitoring_status()
     {
         check_ajax_referer('mmwm_ajax_nonce');
-        if (! current_user_can('edit_posts')) {
+        if (!current_user_can('edit_posts')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            return;
         }
         if (isset($_POST['post_id']) && isset($_POST['new_status'])) {
             $post_id = intval($_POST['post_id']);

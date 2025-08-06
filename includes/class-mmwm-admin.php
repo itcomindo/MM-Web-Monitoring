@@ -8,7 +8,6 @@ if (! defined('ABSPATH')) {
 class MMWM_Admin
 {
 
-    // #FITUR BARU: Halaman Bulk Add
     public function add_bulk_add_menu()
     {
         add_submenu_page(
@@ -46,7 +45,6 @@ class MMWM_Admin
     <?php
     }
 
-    // #MODIFIKASI 1: Kolom Kustom di daftar CPT
     public function add_custom_columns($columns)
     {
         $new_columns = [];
@@ -145,8 +143,7 @@ class MMWM_Admin
     public function add_list_page_scripts_and_styles()
     {
         global $current_screen;
-        // Hanya jalankan jika kita berada di halaman yang tepat
-        if ($current_screen->id !== 'edit-mmwm_website' && $current_screen->id !== 'mmwm_website_page_mmwm-bulk-add') {
+        if (!$current_screen || ($current_screen->id !== 'edit-mmwm_website' && $current_screen->id !== 'mmwm_website_page_mmwm-bulk-add')) {
             return;
         }
 
@@ -175,7 +172,6 @@ class MMWM_Admin
                 width: 90px;
             }
 
-            /* Style untuk Progress Bar Cantik */
             #mmwm-progress-bar {
                 width: 0%;
                 height: 24px;
@@ -399,7 +395,6 @@ class MMWM_Admin
         endif;
     }
 
-    // AJAX Handlers
     public function handle_ajax_update_interval()
     {
         check_ajax_referer('mmwm_ajax_nonce');
@@ -425,7 +420,6 @@ class MMWM_Admin
         $host = parse_url($url, PHP_URL_HOST);
         $title = $host ? str_replace('www.', '', $host) : 'Untitled-' . time();
 
-        // Cek jika sudah ada
         $existing = get_page_by_title($title, OBJECT, 'mmwm_website');
         if ($existing) {
             wp_send_json_error(['message' => 'Website already exists: ' . esc_html($title)]);
