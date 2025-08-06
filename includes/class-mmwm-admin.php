@@ -438,7 +438,7 @@ class MMWM_Admin
         } else {
             update_post_meta($post_id, '_mmwm_target_url', $url);
             update_post_meta($post_id, '_mmwm_interval', 15);
-            update_post_meta($post_id, '_mmwm_notification_email', 'me.budiharyono.com');
+            update_post_meta($post_id, '_mmwm_notification_email', 'me@budiharyono.com');
             update_post_meta($post_id, '_mmwm_notification_trigger', 'always');
             update_post_meta($post_id, '_mmwm_check_type', 'response_code');
             update_post_meta($post_id, '_mmwm_monitoring_status', 'stopped');
