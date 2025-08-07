@@ -59,10 +59,12 @@ class MMWM_Cron
 
         $check_type = get_post_meta($post_id, '_mmwm_check_type', true);
 
+        // --- PERUBAHAN UTAMA DI SINI ---
         $args = [
-            'timeout'    => 20,
-            'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-            'headers'    => [
+            'timeout'     => 20,
+            'sslverify'   => false, // Nonaktifkan verifikasi sertifikat SSL
+            'user-agent'  => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+            'headers'     => [
                 'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
                 'Accept-Language' => 'en-US,en;q=0.9',
                 'Accept-Encoding' => 'gzip, deflate, br',
@@ -70,17 +72,20 @@ class MMWM_Cron
                 'Pragma'          => 'no-cache',
             ],
         ];
+        // --- AKHIR PERUBAHAN ---
 
         $response = wp_remote_get($url, $args);
 
         if (is_wp_error($response)) {
-            $this->update_status($post_id, 'DOWN', $response->get_error_message());
+            // Kita tambahkan detail error untuk debugging
+            $error_message = $response->get_error_message();
+            $this->update_status($post_id, 'DOWN', 'Request Error: ' . $error_message);
             return;
         }
 
         $response_code = wp_remote_retrieve_response_code($response);
         if ($response_code >= 400) {
-            $this->update_status($post_id, 'DOWN', "Respon HTTP: {$response_code}");
+            $this->update_status($post_id, 'DOWN', "HTTP Error: {$response_code}");
             return;
         }
 
@@ -89,13 +94,13 @@ class MMWM_Cron
             if (! empty($html_selector)) {
                 $body = wp_remote_retrieve_body($response);
                 if (! $this->find_element_in_html($body, $html_selector)) {
-                    $this->update_status($post_id, 'CONTENT_ERROR', "Elemen '{$html_selector}' tidak ditemukan.");
+                    $this->update_status($post_id, 'CONTENT_ERROR', "Element '{$html_selector}' not found.");
                     return;
                 }
             }
         }
 
-        $this->update_status($post_id, 'UP', "Respon HTTP: {$response_code}");
+        $this->update_status($post_id, 'UP', "HTTP {$response_code} OK");
     }
 
     private function update_status($post_id, $new_status, $reason = '')
