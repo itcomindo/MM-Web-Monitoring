@@ -52,17 +52,11 @@ class MMWM_Cron
     public function perform_check($post_id)
     {
         $url = get_post_meta($post_id, '_mmwm_target_url', true);
-        if (! filter_var($url, FILTER_VALIDATE_URL)) {
-            $this->update_status($post_id, 'Invalid URL', 'URL tidak valid.');
-            return;
-        }
-
         $check_type = get_post_meta($post_id, '_mmwm_check_type', true);
 
-        // --- PERUBAHAN UTAMA DI SINI ---
         $args = [
             'timeout'     => 20,
-            'sslverify'   => false, // Nonaktifkan verifikasi sertifikat SSL
+            'sslverify'   => false,
             'user-agent'  => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
             'headers'     => [
                 'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -72,20 +66,23 @@ class MMWM_Cron
                 'Pragma'          => 'no-cache',
             ],
         ];
-        // --- AKHIR PERUBAHAN ---
 
         $response = wp_remote_get($url, $args);
+        $new_status = '';
+        $reason = '';
 
         if (is_wp_error($response)) {
-            // Kita tambahkan detail error untuk debugging
-            $error_message = $response->get_error_message();
-            $this->update_status($post_id, 'DOWN', 'Request Error: ' . $error_message);
+            $new_status = 'DOWN';
+            $reason = 'Request Error: ' . $response->get_error_message();
+            $this->update_status($post_id, $new_status, $reason);
             return;
         }
 
         $response_code = wp_remote_retrieve_response_code($response);
         if ($response_code >= 400) {
-            $this->update_status($post_id, 'DOWN', "HTTP Error: {$response_code}");
+            $new_status = 'DOWN';
+            $reason = "HTTP Error: {$response_code}";
+            $this->update_status($post_id, $new_status, $reason);
             return;
         }
 
@@ -94,13 +91,21 @@ class MMWM_Cron
             if (! empty($html_selector)) {
                 $body = wp_remote_retrieve_body($response);
                 if (! $this->find_element_in_html($body, $html_selector)) {
-                    $this->update_status($post_id, 'CONTENT_ERROR', "Element '{$html_selector}' not found.");
+                    $new_status = 'CONTENT_ERROR';
+                    $reason = "HTML Check: Element '{$html_selector}' not found.";
+                    $this->update_status($post_id, $new_status, $reason);
                     return;
                 }
             }
         }
 
-        $this->update_status($post_id, 'UP', "HTTP {$response_code} OK");
+        $new_status = 'UP';
+        $reason = "HTTP {$response_code} OK";
+        if ($check_type === 'fetch_html' && !empty($html_selector)) {
+            $reason .= ' (HTML element found)';
+        }
+
+        $this->update_status($post_id, $new_status, $reason);
     }
 
     private function update_status($post_id, $new_status, $reason = '')
@@ -115,11 +120,12 @@ class MMWM_Cron
         $should_send = false;
 
         if ($notification_trigger === 'always') {
-            $should_send = true;
+            $should_send = true; // Selalu kirim, apapun statusnya
         } elseif ($notification_trigger === 'when_error_only') {
             $is_new_status_error = in_array($new_status, ['DOWN', 'CONTENT_ERROR', 'Invalid URL']);
             $was_old_status_error = in_array($old_status, ['DOWN', 'CONTENT_ERROR', 'Invalid URL']);
 
+            // Kirim jika status baru adalah error, atau jika status lama error dan status baru pulih (UP)
             if ($is_new_status_error || ($was_old_status_error && $new_status === 'UP')) {
                 $should_send = true;
             }
@@ -142,7 +148,13 @@ class MMWM_Cron
     private function send_notification_email($post_id, $old_status, $new_status, $reason)
     {
         $url = get_post_meta($post_id, '_mmwm_target_url', true);
-        $email_to = get_post_meta($post_id, '_mmwm_notification_email', true) ?: get_option('admin_email');
+        $email_to = get_post_meta($post_id, '_mmwm_notification_email', true);
+
+        // Cek email jika kosong, ambil dari global options atau admin email
+        if (empty($email_to)) {
+            $email_to = get_option('mmwm_default_email', get_option('admin_email'));
+        }
+
         $subject = sprintf('Monitoring Report for %s: %s', get_the_title($post_id), $new_status);
 
         $body  = "Monitoring Report:\n\n";
@@ -150,9 +162,9 @@ class MMWM_Cron
         $body .= "Previous Status: " . ($old_status ?: 'N/A') . "\n";
         $body .= "Current Status: " . $new_status . "\n";
         $body .= "Check Time: " . wp_date('Y-m-d H:i:s', time()) . "\n";
-        if (!empty($reason)) {
-            $body .= "Details: " . $reason . "\n";
-        }
+
+        // Detail Laporan
+        $body .= "Reason/Details: " . $reason . "\n\n";
 
         return wp_mail($email_to, $subject, $body);
     }

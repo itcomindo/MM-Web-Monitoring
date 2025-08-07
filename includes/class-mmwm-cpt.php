@@ -15,43 +15,26 @@ class MMWM_CPT
             'singular_name'         => _x('Website', 'Post Type Singular Name', 'mm-web-monitoring'),
             'menu_name'             => __('Web Monitoring', 'mm-web-monitoring'),
             'name_admin_bar'        => __('Website', 'mm-web-monitoring'),
-            'archives'              => __('Website Archives', 'mm-web-monitoring'),
-            'attributes'            => __('Website Attributes', 'mm-web-monitoring'),
-            'parent_item_colon'     => __('Parent Website:', 'mm-web-monitoring'),
             'all_items'             => __('All Websites', 'mm-web-monitoring'),
             'add_new_item'          => __('Add New Website', 'mm-web-monitoring'),
             'add_new'               => __('Add New', 'mm-web-monitoring'),
             'new_item'              => __('New Website', 'mm-web-monitoring'),
             'edit_item'             => __('Edit Monitoring Website', 'mm-web-monitoring'),
-            'update_item'           => __('Update Website', 'mm-web-monitoring'),
             'view_item'             => __('View Website', 'mm-web-monitoring'),
-            'view_items'            => __('View Websites', 'mm-web-monitoring'),
-            'search_items'          => __('Search Website', 'mm-web-monitoring'),
-            'not_found'             => __('Not found', 'mm-web-monitoring'),
-            'not_found_in_trash'    => __('Not found in Trash', 'mm-web-monitoring'),
-            'items_list'            => __('Websites list', 'mm-web-monitoring'),
-            'items_list_navigation' => __('Websites list navigation', 'mm-web-monitoring'),
-            'filter_items_list'     => __('Filter websites list', 'mm-web-monitoring'),
+            'update_item'           => __('Update Monitor', 'mm-web-monitoring'),
+            'search_items'          => __('Search Websites', 'mm-web-monitoring'),
         );
         $args = array(
             'label'                 => __('Website', 'mm-web-monitoring'),
-            'description'           => __('Websites to Monitor', 'mm-web-monitoring'),
             'labels'                => $labels,
             'supports'              => array('title'),
-            'hierarchical'          => false,
             'public'                => false,
             'show_ui'               => true,
             'show_in_menu'          => true,
             'menu_position'         => 25,
             'menu_icon'             => 'dashicons-networking',
-            'show_in_admin_bar'     => true,
-            'show_in_nav_menus'     => false,
-            'can_export'            => true,
-            'has_archive'           => false,
-            'exclude_from_search'   => true,
             'publicly_queryable'    => false,
             'capability_type'       => 'post',
-            'show_in_rest'          => false,
         );
         register_post_type('mmwm_website', $args);
     }
@@ -59,6 +42,20 @@ class MMWM_CPT
     public function add_meta_boxes()
     {
         add_meta_box('mmwm_website_details', 'Monitoring Settings', [$this, 'render_meta_box'], 'mmwm_website', 'normal', 'high');
+        add_meta_box('mmwm_website_status', 'Current Monitoring Status', [$this, 'render_status_metabox'], 'mmwm_website', 'side', 'high');
+    }
+
+    public function render_status_metabox($post)
+    {
+        $last_status = get_post_meta($post->ID, '_mmwm_status', true);
+        $last_check_timestamp = get_post_meta($post->ID, '_mmwm_last_check', true);
+
+?>
+        <div id="mmwm-status-details">
+            <p><strong>Status:</strong> <span id="mmwm-current-status"><?php echo esc_html($last_status ?: 'Not yet checked'); ?></span></p>
+            <p><strong>Last Check:</strong> <span id="mmwm-last-check"><?php echo $last_check_timestamp ? human_time_diff($last_check_timestamp) . ' ago' : 'N/A'; ?></span></p>
+        </div>
+    <?php
     }
 
     public function render_meta_box($post)
@@ -68,6 +65,8 @@ class MMWM_CPT
         $monitoring_status = get_post_meta($post->ID, '_mmwm_monitoring_status', true) ?: 'stopped';
         $email_log = get_post_meta($post->ID, '_mmwm_email_log', true);
         $check_type = get_post_meta($post->ID, '_mmwm_check_type', true) ?: 'response_code';
+        $notification_trigger = get_post_meta($post->ID, '_mmwm_notification_trigger', true) ?: 'always';
+        $notification_email = get_post_meta($post->ID, '_mmwm_notification_email', true);
 
         $headline_style = 'padding: 10px; color: white; margin-bottom: 15px; font-weight: bold; text-transform: uppercase;';
         if ($monitoring_status === 'active') {
@@ -81,7 +80,7 @@ class MMWM_CPT
             $headline_style .= 'background-color: #646970;';
         }
 
-?>
+    ?>
         <div id="mmwm-status-headline" style="<?php echo esc_attr($headline_style); ?>"><?php echo esc_html($headline_text); ?></div>
 
         <table class="form-table">
@@ -98,58 +97,57 @@ class MMWM_CPT
             </tr>
             <tr valign="top" id="mmwm_html_selector_row">
                 <th scope="row"><label for="mmwm_html_selector"><?php _e('HTML Element to Find', 'mm-web-monitoring'); ?></label></th>
-                <td><textarea name="mmwm_html_selector" id="mmwm_html_selector" rows="3" class="large-text"><?php echo esc_textarea(get_post_meta($post->ID, '_mmwm_html_selector', true)); ?></textarea></td>
+                <td>
+                    <textarea name="mmwm_html_selector" id="mmwm_html_selector" rows="3" class="large-text"><?php echo esc_textarea(get_post_meta($post->ID, '_mmwm_html_selector', true)); ?></textarea>
+                    <p class="description"><?php _e('Copy and paste the HTML element ID or class (e.g., #main-title or .logo) to check for existence in the fetched HTML.', 'mm-web-monitoring'); ?></p>
+                </td>
             </tr>
             <tr valign="top">
                 <th scope="row"><label for="mmwm_notification_email"><?php _e('Notification Email', 'mm-web-monitoring'); ?></label></th>
-                <td><input type="email" id="mmwm_notification_email" name="mmwm_notification_email" value="<?php echo esc_attr(get_post_meta($post->ID, '_mmwm_notification_email', true) ?: get_option('admin_email')); ?>" class="regular-text" /></td>
+                <td>
+                    <input type="email" id="mmwm_notification_email" name="mmwm_notification_email" value="<?php echo esc_attr($notification_email); ?>" class="regular-text" />
+                    <p class="description"><?php printf(__('If not filled, will use the global default email: %s', 'mm-web-monitoring'), get_option('mmwm_default_email', get_option('admin_email'))); ?></p>
+                </td>
             </tr>
             <tr valign="top">
                 <th scope="row"><label><?php _e('Send Email', 'mm-web-monitoring'); ?></label></th>
                 <td>
                     <fieldset>
                         <label>
-                            <input type="radio" name="mmwm_notification_trigger" value="always" <?php checked(get_post_meta($post->ID, '_mmwm_notification_trigger', true) ?: 'always', 'always'); ?>>
+                            <input type="radio" name="mmwm_notification_trigger" value="always" <?php checked($notification_trigger, 'always'); ?>>
                             <strong><?php _e('Always', 'mm-web-monitoring'); ?></strong>
                         </label>
                         <p class="description" style="margin-left: 20px;"><?php _e('Kirim email setiap kali pengecekan berjalan, apapun hasilnya (UP, DOWN, atau sama seperti sebelumnya).', 'mm-web-monitoring'); ?></p>
                         <br>
                         <label>
-                            <input type="radio" name="mmwm_notification_trigger" value="when_error_only" <?php checked(get_post_meta($post->ID, '_mmwm_notification_trigger', true), 'when_error_only'); ?>>
+                            <input type="radio" name="mmwm_notification_trigger" value="when_error_only" <?php checked($notification_trigger, 'when_error_only'); ?>>
                             <strong><?php _e('On Error & Recovery', 'mm-web-monitoring'); ?></strong>
                         </label>
-                        <p class="description" style="margin-left: 20px;"><?php _e('Kirim email hanya jika status UP -> DOWN, DOWN -> DOWN, atau DOWN -> UP (pemulihan). Tidak mengirim jika status stabil UP.', 'mm-web-monitoring'); ?></p>
+                        <p class="description" style="margin-left: 20px;"><?php _e('Kirim email jika status berubah dari UP -> DOWN atau jika status tetap DOWN. Juga kirim saat pulih (DOWN -> UP).', 'mm-web-monitoring'); ?></p>
                     </fieldset>
                 </td>
             </tr>
-            <tr valign="top">
-                <th scope="row"><label><?php _e('Last Check Details', 'mm-web-monitoring'); ?></label></th>
+            <tr valign="top" id="mmwm-email-log-row">
+                <th scope="row"><label><?php _e('Email Log', 'mm-web-monitoring'); ?></label></th>
                 <td>
-                    <div id="mmwm-last-status-text"><strong>Status:</strong> <?php echo esc_html(get_post_meta($post->ID, '_mmwm_status', true) ?: 'Not yet checked'); ?></div>
-                    <div id="mmwm-last-email-log"><strong>Email Log:</strong> <?php echo esc_html($email_log ?: 'N/A'); ?></div>
-                </td>
-            </tr>
-            <tr valign="top">
-                <th scope="row"><label><?php _e('Actions', 'mm-web-monitoring'); ?></label></th>
-                <td>
-                    <div id="mmwm-action-buttons">
-                        <button type="button" class="button button-primary" data-action="active" style="<?php echo ($monitoring_status !== 'active') ? '' : 'display:none;'; ?>">Start</button>
-                        <button type="button" class="button" data-action="paused" style="<?php echo ($monitoring_status === 'active') ? '' : 'display:none;'; ?>">Pause</button>
-                        <button type="button" class="button button-danger" data-action="stopped" style="<?php echo ($monitoring_status !== 'stopped') ? '' : 'display:none;'; ?>">Stop</button>
-                        <button type="button" class="button button-secondary" id="mmwm-run-check-now">Check Now</button>
-                        <span class="spinner" style="float:none;"></span>
-                    </div>
+                    <div id="mmwm-last-email-log"><?php echo esc_html($email_log ?: 'N/A'); ?></div>
                 </td>
             </tr>
         </table>
+
+        <?php if ($post->ID) : ?>
+            <div id="mmwm-action-buttons" style="margin-top: 15px;">
+                <button type="button" class="button button-primary" data-action="active" style="<?php echo ($monitoring_status !== 'active') ? '' : 'display:none;'; ?>">Start</button>
+                <button type="button" class="button" data-action="paused" style="<?php echo ($monitoring_status === 'active') ? '' : 'display:none;'; ?>">Pause</button>
+                <button type="button" class="button button-danger" data-action="stopped" style="<?php echo ($monitoring_status !== 'stopped') ? '' : 'display:none;'; ?>">Stop</button>
+                <button type="button" class="button button-secondary" id="mmwm-run-check-now">Check Now</button>
+                <span class="spinner" style="float:none;"></span>
+            </div>
+        <?php endif; ?>
     <?php
     }
 
-    /**
-     * Changes the "Edit Post" title to "Edit Monitoring Website" using JavaScript.
-     * This is a safer method than using the 'gettext' filter.
-     */
-    public function change_cpt_edit_title_script()
+    public function add_cpt_header_scripts()
     {
         global $current_screen;
         if (!$current_screen || 'mmwm_website' != $current_screen->post_type || 'post' != $current_screen->base) {
@@ -158,9 +156,14 @@ class MMWM_CPT
     ?>
         <script type="text/javascript">
             document.addEventListener('DOMContentLoaded', function() {
-                var h1 = document.querySelector('.wrap h1');
-                if (h1 && h1.childNodes[0].nodeValue.trim() === 'Edit Post') {
-                    h1.childNodes[0].nodeValue = '<?php echo esc_js(__('Edit Monitoring Website', 'mm-web-monitoring')); ?> ';
+                var publishButton = document.getElementById('publish');
+                if (publishButton) {
+                    // Cek apakah ini post baru atau edit
+                    if (document.body.classList.contains('post-new-php')) {
+                        publishButton.value = '<?php echo esc_js(__('Start Monitoring', 'mm-web-monitoring')); ?>';
+                    } else {
+                        publishButton.value = '<?php echo esc_js(__('Update Monitor', 'mm-web-monitoring')); ?>';
+                    }
                 }
             });
         </script>
@@ -188,7 +191,12 @@ class MMWM_CPT
                 var spinner = $('#mmwm-action-buttons .spinner');
                 var postId = <?php echo $post->ID; ?>;
 
-                // Check Now Button
+                if (postId > 0) {
+                    $('#mmwm-action-buttons button').prop('disabled', false);
+                } else {
+                    $('#mmwm-action-buttons').hide();
+                }
+
                 $('#mmwm-run-check-now').on('click', function() {
                     spinner.addClass('is-active');
                     $(this).prop('disabled', true);
@@ -200,8 +208,9 @@ class MMWM_CPT
                         })
                         .done(function(res) {
                             if (res.success) {
-                                $('#mmwm-last-status-text').html('<strong>Status:</strong> ' + res.data.status);
-                                $('#mmwm-last-email-log').html('<strong>Email Log:</strong> ' + res.data.email_log);
+                                $('#mmwm-current-status').text(res.data.status);
+                                $('#mmwm-last-check').text('just now');
+                                $('#mmwm-last-email-log').text(res.data.email_log);
                             } else {
                                 alert('Error: ' + (res.data.message || 'Unknown error'));
                             }
@@ -213,7 +222,6 @@ class MMWM_CPT
                         });
                 });
 
-                // Start/Pause/Stop Buttons
                 $('#mmwm-action-buttons button[data-action]').on('click', function() {
                     var button = $(this);
                     var action = button.data('action');
@@ -238,7 +246,7 @@ class MMWM_CPT
 <?php
     }
 
-    public function save_meta_data($post_id)
+    public function save_meta_data($post_id, $post)
     {
         if (!isset($_POST['mmwm_meta_box_nonce']) || !wp_verify_nonce($_POST['mmwm_meta_box_nonce'], 'mmwm_save_meta_box_data')) return;
         if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
@@ -257,8 +265,11 @@ class MMWM_CPT
             }
         }
 
-        if (empty(get_post_meta($post_id, '_mmwm_monitoring_status', true))) {
-            update_post_meta($post_id, '_mmwm_monitoring_status', 'stopped');
+        if ($post->post_status === 'publish' && get_post_meta($post_id, '_mmwm_monitoring_status', true) !== 'active') {
+            update_post_meta($post_id, '_mmwm_monitoring_status', 'active');
+
+            // Jadwalkan pengecekan segera
+            wp_schedule_single_event(time() - 1, 'mmwm_run_check_now_single', [$post_id]);
         }
     }
 }
