@@ -67,6 +67,7 @@ class MMWM_CPT
         $check_type = get_post_meta($post->ID, '_mmwm_check_type', true) ?: 'response_code';
         $notification_trigger = get_post_meta($post->ID, '_mmwm_notification_trigger', true) ?: 'always';
         $notification_email = get_post_meta($post->ID, '_mmwm_notification_email', true);
+        $host_in = get_post_meta($post->ID, '_mmwm_host_in', true); // Get "Host In" value
 
         $headline_style = 'padding: 10px; color: white; margin-bottom: 15px; font-weight: bold; text-transform: uppercase;';
         if ($monitoring_status === 'active') {
@@ -87,6 +88,13 @@ class MMWM_CPT
             <tr valign="top">
                 <th scope="row"><label for="mmwm_target_url"><?php _e('Target URL', 'mm-web-monitoring'); ?></label></th>
                 <td><input type="url" id="mmwm_target_url" name="mmwm_target_url" value="<?php echo esc_url(get_post_meta($post->ID, '_mmwm_target_url', true)); ?>" class="large-text" required /></td>
+            </tr>
+            <!-- New "Host In" field -->
+            <tr valign="top">
+                <th scope="row"><label for="mmwm_host_in"><?php _e('Host In', 'mm-web-monitoring'); ?></label></th>
+                <td><input type="text" id="mmwm_host_in" name="mmwm_host_in" value="<?php echo esc_attr($host_in); ?>" class="regular-text" placeholder="e.g., Rumahweb, Niagahoster" />
+                    <p class="description"><?php _e('Enter the name of the hosting provider for this website.', 'mm-web-monitoring'); ?></p>
+                </td>
             </tr>
             <tr valign="top">
                 <th scope="row"><label><?php _e('Check Type', 'mm-web-monitoring'); ?></label></th>
@@ -158,7 +166,6 @@ class MMWM_CPT
             document.addEventListener('DOMContentLoaded', function() {
                 var publishButton = document.getElementById('publish');
                 if (publishButton) {
-                    // Cek apakah ini post baru atau edit
                     if (document.body.classList.contains('post-new-php')) {
                         publishButton.value = '<?php echo esc_js(__('Start Monitoring', 'mm-web-monitoring')); ?>';
                     } else {
@@ -254,6 +261,7 @@ class MMWM_CPT
         if ('mmwm_website' !== get_post_type($post_id)) return;
 
         if (isset($_POST['mmwm_target_url'])) update_post_meta($post_id, '_mmwm_target_url', esc_url_raw($_POST['mmwm_target_url']));
+        if (isset($_POST['mmwm_host_in'])) update_post_meta($post_id, '_mmwm_host_in', sanitize_text_field($_POST['mmwm_host_in']));
         if (isset($_POST['mmwm_check_type'])) update_post_meta($post_id, '_mmwm_check_type', sanitize_text_field($_POST['mmwm_check_type']));
         if (isset($_POST['mmwm_html_selector'])) update_post_meta($post_id, '_mmwm_html_selector', sanitize_textarea_field($_POST['mmwm_html_selector']));
         if (isset($_POST['mmwm_notification_email'])) update_post_meta($post_id, '_mmwm_notification_email', sanitize_email($_POST['mmwm_notification_email']));
@@ -268,8 +276,10 @@ class MMWM_CPT
         if ($post->post_status === 'publish' && get_post_meta($post_id, '_mmwm_monitoring_status', true) !== 'active') {
             update_post_meta($post_id, '_mmwm_monitoring_status', 'active');
 
-            // Jadwalkan pengecekan segera
-            wp_schedule_single_event(time() - 1, 'mmwm_run_check_now_single', [$post_id]);
+            // Immediately run a check
+            if (class_exists('MMWM_Cron')) {
+                (new MMWM_Cron())->perform_check($post_id);
+            }
         }
     }
 }

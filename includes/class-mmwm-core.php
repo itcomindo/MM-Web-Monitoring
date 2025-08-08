@@ -49,6 +49,7 @@ class MMWM_Core
 
         // AJAX handlers
         add_action('wp_ajax_mmwm_update_interval', array($admin_handler, 'handle_ajax_update_interval'));
+        add_action('wp_ajax_mmwm_update_host_in', array($admin_handler, 'handle_ajax_update_host_in')); // New hook
         add_action('wp_ajax_mmwm_update_notification_email', array($admin_handler, 'handle_ajax_update_notification_email'));
         add_action('wp_ajax_mmwm_update_notification_trigger', array($admin_handler, 'handle_ajax_update_notification_trigger'));
         add_action('wp_ajax_mmwm_bulk_add_sites', array($admin_handler, 'handle_ajax_bulk_add'));
