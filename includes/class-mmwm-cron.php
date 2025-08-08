@@ -120,12 +120,11 @@ class MMWM_Cron
         $should_send = false;
 
         if ($notification_trigger === 'always') {
-            $should_send = true; // Selalu kirim, apapun statusnya
+            $should_send = true;
         } elseif ($notification_trigger === 'when_error_only') {
             $is_new_status_error = in_array($new_status, ['DOWN', 'CONTENT_ERROR', 'Invalid URL']);
             $was_old_status_error = in_array($old_status, ['DOWN', 'CONTENT_ERROR', 'Invalid URL']);
 
-            // Kirim jika status baru adalah error, atau jika status lama error dan status baru pulih (UP)
             if ($is_new_status_error || ($was_old_status_error && $new_status === 'UP')) {
                 $should_send = true;
             }
@@ -150,10 +149,13 @@ class MMWM_Cron
         $url = get_post_meta($post_id, '_mmwm_target_url', true);
         $email_to = get_post_meta($post_id, '_mmwm_notification_email', true);
 
-        // Cek email jika kosong, ambil dari global options atau admin email
         if (empty($email_to)) {
             $email_to = get_option('mmwm_default_email', get_option('admin_email'));
         }
+
+        // --- PERUBAHAN UTAMA DI SINI ---
+        $host_in = get_post_meta($post_id, '_mmwm_host_in', true) ?: 'Not specified';
+        // --- AKHIR PERUBAHAN ---
 
         $subject = sprintf('Monitoring Report for %s: %s', get_the_title($post_id), $new_status);
 
@@ -162,9 +164,10 @@ class MMWM_Cron
         $body .= "Previous Status: " . ($old_status ?: 'N/A') . "\n";
         $body .= "Current Status: " . $new_status . "\n";
         $body .= "Check Time: " . wp_date('Y-m-d H:i:s', time()) . "\n";
-
-        // Detail Laporan
-        $body .= "Reason/Details: " . $reason . "\n\n";
+        $body .= "Reason/Details: " . $reason . "\n";
+        // --- PERUBAHAN UTAMA DI SINI ---
+        $body .= "Host in: " . $host_in . "\n\n";
+        // --- AKHIR PERUBAHAN ---
 
         return wp_mail($email_to, $subject, $body);
     }
