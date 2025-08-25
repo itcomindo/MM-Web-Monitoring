@@ -54,6 +54,7 @@ class MMWM_Cron
         $url = get_post_meta($post_id, '_mmwm_target_url', true);
         $check_type = get_post_meta($post_id, '_mmwm_check_type', true);
 
+        // --- PERUBAHAN UTAMA DI SINI ---
         $args = [
             'timeout'     => 20,
             'sslverify'   => false,
@@ -64,8 +65,11 @@ class MMWM_Cron
                 'Accept-Encoding' => 'gzip, deflate, br',
                 'Cache-Control'   => 'no-cache',
                 'Pragma'          => 'no-cache',
+                // Menambahkan header Referer secara eksplisit
+                'Referer'         => home_url(),
             ],
         ];
+        // --- AKHIR PERUBAHAN ---
 
         $response = wp_remote_get($url, $args);
         $new_status = '';
@@ -153,9 +157,7 @@ class MMWM_Cron
             $email_to = get_option('mmwm_default_email', get_option('admin_email'));
         }
 
-        // --- PERUBAHAN UTAMA DI SINI ---
         $host_in = get_post_meta($post_id, '_mmwm_host_in', true) ?: 'Not specified';
-        // --- AKHIR PERUBAHAN ---
 
         $subject = sprintf('Monitoring Report for %s: %s', get_the_title($post_id), $new_status);
 
@@ -165,9 +167,7 @@ class MMWM_Cron
         $body .= "Current Status: " . $new_status . "\n";
         $body .= "Check Time: " . wp_date('Y-m-d H:i:s', time()) . "\n";
         $body .= "Reason/Details: " . $reason . "\n";
-        // --- PERUBAHAN UTAMA DI SINI ---
         $body .= "Host in: " . $host_in . "\n\n";
-        // --- AKHIR PERUBAHAN ---
 
         return wp_mail($email_to, $subject, $body);
     }

@@ -67,7 +67,7 @@ class MMWM_CPT
         $check_type = get_post_meta($post->ID, '_mmwm_check_type', true) ?: 'response_code';
         $notification_trigger = get_post_meta($post->ID, '_mmwm_notification_trigger', true) ?: 'always';
         $notification_email = get_post_meta($post->ID, '_mmwm_notification_email', true);
-        $host_in = get_post_meta($post->ID, '_mmwm_host_in', true); // Get "Host In" value
+        $host_in = get_post_meta($post->ID, '_mmwm_host_in', true);
 
         $headline_style = 'padding: 10px; color: white; margin-bottom: 15px; font-weight: bold; text-transform: uppercase;';
         if ($monitoring_status === 'active') {
@@ -89,7 +89,6 @@ class MMWM_CPT
                 <th scope="row"><label for="mmwm_target_url"><?php _e('Target URL', 'mm-web-monitoring'); ?></label></th>
                 <td><input type="url" id="mmwm_target_url" name="mmwm_target_url" value="<?php echo esc_url(get_post_meta($post->ID, '_mmwm_target_url', true)); ?>" class="large-text" required /></td>
             </tr>
-            <!-- New "Host In" field -->
             <tr valign="top">
                 <th scope="row"><label for="mmwm_host_in"><?php _e('Host In', 'mm-web-monitoring'); ?></label></th>
                 <td><input type="text" id="mmwm_host_in" name="mmwm_host_in" value="<?php echo esc_attr($host_in); ?>" class="regular-text" placeholder="e.g., Rumahweb, Niagahoster" />
@@ -276,7 +275,8 @@ class MMWM_CPT
         if ($post->post_status === 'publish' && get_post_meta($post_id, '_mmwm_monitoring_status', true) !== 'active') {
             update_post_meta($post_id, '_mmwm_monitoring_status', 'active');
 
-            // Immediately run a check
+            // --- PERBAIKAN BUG DI SINI ---
+            // Panggil fungsi perform_check secara langsung, ini lebih andal daripada menjadwalkan event.
             if (class_exists('MMWM_Cron')) {
                 (new MMWM_Cron())->perform_check($post_id);
             }
