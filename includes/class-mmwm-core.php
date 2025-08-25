@@ -65,7 +65,7 @@ class MMWM_Core
         add_action('mmwm_daily_global_check_event', array($cron_handler, 'run_daily_global_check'));
         add_action('wp_ajax_mmwm_run_check_now', array($cron_handler, 'handle_ajax_run_check_now'));
         add_action('wp_ajax_mmwm_update_monitoring_status', array($cron_handler, 'handle_ajax_update_monitoring_status'));
-        
+
         // Schedule daily global check on plugin activation
         add_action('init', array($cron_handler, 'schedule_daily_global_check'));
 

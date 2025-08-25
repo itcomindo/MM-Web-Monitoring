@@ -42,16 +42,16 @@ class MMWM_Cron
     {
         if (!wp_next_scheduled('mmwm_daily_global_check_event')) {
             $hour = get_option('mmwm_global_cron_hour', 2);
-            
+
             // Calculate next occurrence at specified hour
             $today = date('Y-m-d');
             $target_time = strtotime($today . ' ' . sprintf('%02d:00:00', $hour));
-            
+
             // If target time has already passed today, schedule for tomorrow
             if ($target_time <= time()) {
                 $target_time = strtotime('+1 day', $target_time);
             }
-            
+
             wp_schedule_event($target_time, 'daily', 'mmwm_daily_global_check_event');
         }
     }
@@ -87,22 +87,22 @@ class MMWM_Cron
     {
         $ssl_checker = new MMWM_SSL_Checker();
         $url = get_post_meta($post_id, '_mmwm_target_url', true);
-        
+
         if (!$url) {
             return;
         }
 
         $ssl_result = $ssl_checker->check_ssl($url);
-        
+
         // Update SSL data
         update_post_meta($post_id, '_mmwm_ssl_last_check', time());
-        
+
         if ($ssl_result['is_active']) {
             update_post_meta($post_id, '_mmwm_ssl_is_active', '1');
             update_post_meta($post_id, '_mmwm_ssl_expiry_date', $ssl_result['expiry_date']);
             update_post_meta($post_id, '_mmwm_ssl_days_until_expiry', $ssl_result['days_until_expiry']);
             update_post_meta($post_id, '_mmwm_ssl_error', '');
-            
+
             // Send notification if expiring soon (10 days)
             if ($ssl_result['days_until_expiry'] <= 10) {
                 $this->send_ssl_expiring_notification($post_id, $ssl_result);
@@ -120,7 +120,7 @@ class MMWM_Cron
     {
         $domain_monitoring_enabled = get_post_meta($post_id, '_mmwm_domain_monitoring_enabled', true);
         $manual_override = get_post_meta($post_id, '_mmwm_domain_manual_override', true);
-        
+
         if ($domain_monitoring_enabled !== '1') {
             return;
         }
@@ -131,7 +131,7 @@ class MMWM_Cron
             if ($domain_expiry_date) {
                 $days_diff = floor((strtotime($domain_expiry_date) - time()) / (60 * 60 * 24));
                 update_post_meta($post_id, '_mmwm_domain_days_until_expiry', $days_diff);
-                
+
                 // Send notification if expiring in 10 days
                 if ($days_diff <= 10 && $days_diff > 0) {
                     $this->send_domain_expiring_notification($post_id, array(

@@ -271,13 +271,13 @@ class MMWM_Admin
                 break;
             case 'domain_expiry':
                 $domain_monitoring_enabled = get_post_meta($post_id, '_mmwm_domain_monitoring_enabled', true);
-                
+
                 if ($domain_monitoring_enabled === '1') {
                     $domain_expiry_date = get_post_meta($post_id, '_mmwm_domain_expiry_date', true);
                     $domain_days_until_expiry = get_post_meta($post_id, '_mmwm_domain_days_until_expiry', true);
                     $domain_error = get_post_meta($post_id, '_mmwm_domain_error', true);
                     $manual_override = get_post_meta($post_id, '_mmwm_domain_manual_override', true);
-                    
+
                     if ($domain_expiry_date) {
                         $color = '#28a745'; // Green for healthy
                         if ($domain_days_until_expiry <= 10) {
@@ -285,15 +285,15 @@ class MMWM_Admin
                         } elseif ($domain_days_until_expiry <= 30) {
                             $color = '#ffc107'; // Yellow for warning
                         }
-                        
+
                         echo '<span style="color: ' . esc_attr($color) . '; font-weight: bold;">';
                         echo esc_html(date('M j, Y', strtotime($domain_expiry_date)));
                         echo '</span>';
-                        
+
                         if ($manual_override) {
                             echo '<br><small style="color: #0073aa;">Manual</small>';
                         }
-                        
+
                         echo '<br><small style="color: #666;">' . esc_html($domain_days_until_expiry) . ' days left</small>';
                     } elseif ($domain_error) {
                         echo '<span style="color: #dc3545;" title="' . esc_attr($domain_error) . '">Check Failed</span>';
@@ -334,7 +334,7 @@ class MMWM_Admin
                 break;
             case 'interval':
                 $interval = get_post_meta($post_id, '_mmwm_monitoring_interval', true) ?: '15min';
-                
+
                 // Convert interval to display format
                 $interval_display = '';
                 switch ($interval) {
@@ -362,7 +362,7 @@ class MMWM_Admin
                     default:
                         $interval_display = '15 min';
                 }
-                
+
                 echo '<span class="mmwm-editable-text" data-type="interval" data-postid="' . $post_id . '" title="Click to change">' . esc_html($interval_display) . '</span>';
                 break;
             case 'host_in':
