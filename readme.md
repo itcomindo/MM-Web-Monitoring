@@ -70,4 +70,21 @@ Halaman utama plugin ada di **Web Monitoring > All Websites**. Di sini Anda bisa
 *   **Aksi Individu:** Gunakan tombol-tombol di kolom "Actions" untuk menjalankan pengecekan manual (`Check Now`), menjeda (`Pause`), mengaktifkan (`Start`), atau menghentikan (`Stop`) monitoring untuk satu website.
 *   **Aksi Massal:** Centang beberapa website menggunakan checkbox, lalu gunakan tombol **Bulk Check Now**, **Bulk Start**, atau **Bulk Pause** yang ada di atas tabel untuk melakukan aksi secara massal.
 
----
+
+```
+```
+mm-web-monitoring
+├─ gui.png
+├─ includes
+│  ├─ class-mmwm-admin.php
+│  ├─ class-mmwm-core.php
+│  ├─ class-mmwm-cpt.php
+│  ├─ class-mmwm-cron.php
+│  ├─ index.php
+│  └─ uninstall.php
+├─ index.php
+├─ mm-web-monitoring.php
+├─ readme.md
+└─ screenshot.png
+
+```
