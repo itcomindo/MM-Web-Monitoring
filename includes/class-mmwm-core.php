@@ -23,11 +23,13 @@ class MMWM_Core
         require_once MMWM_PLUGIN_DIR . 'includes/interfaces/interface-mmwm-notifier.php';
         require_once MMWM_PLUGIN_DIR . 'includes/interfaces/interface-mmwm-scheduler.php';
         require_once MMWM_PLUGIN_DIR . 'includes/interfaces/interface-mmwm-ssl-checker.php';
+        require_once MMWM_PLUGIN_DIR . 'includes/interfaces/interface-mmwm-domain-checker.php';
 
         // Load utilities
         require_once MMWM_PLUGIN_DIR . 'includes/utilities/class-mmwm-validator.php';
         require_once MMWM_PLUGIN_DIR . 'includes/utilities/class-mmwm-sanitizer.php';
         require_once MMWM_PLUGIN_DIR . 'includes/utilities/class-mmwm-html-parser.php';
+        require_once MMWM_PLUGIN_DIR . 'includes/utilities/class-mmwm-email-template.php';
 
         // Load core classes
         require_once MMWM_PLUGIN_DIR . 'includes/core/class-mmwm-loader.php';
@@ -38,6 +40,7 @@ class MMWM_Core
         require_once MMWM_PLUGIN_DIR . 'includes/monitoring/class-mmwm-notifier.php';
         require_once MMWM_PLUGIN_DIR . 'includes/monitoring/class-mmwm-scheduler.php';
         require_once MMWM_PLUGIN_DIR . 'includes/monitoring/class-mmwm-ssl-checker.php';
+        require_once MMWM_PLUGIN_DIR . 'includes/monitoring/class-mmwm-domain-checker.php';
 
         // Load existing classes
         require_once MMWM_PLUGIN_DIR . 'includes/class-mmwm-cpt.php';

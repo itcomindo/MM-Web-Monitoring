@@ -33,12 +33,19 @@ class MMWM_Notifier implements MMWM_Notifier_Interface
         $website_title = get_the_title($post_id);
 
         $subject = $this->build_email_subject($website_title, $new_status);
-        $body = $this->build_email_body($website_title, $url, $old_status, $new_status, $reason, $host_in);
 
-        $headers = [
-            'Content-Type: text/html; charset=UTF-8',
-            'From: ' . get_bloginfo('name') . ' <' . get_option('admin_email') . '>'
+        // Use unified email template
+        $email_data = [
+            'title' => $website_title,
+            'url' => $url,
+            'old_status' => $old_status,
+            'new_status' => $new_status,
+            'reason' => $reason,
+            'host_in' => $host_in
         ];
+
+        $body = MMWM_Email_Template::build_monitoring_report($email_data);
+        $headers = MMWM_Email_Template::get_html_headers();
 
         return wp_mail($email_to, $subject, $body, $headers);
     }

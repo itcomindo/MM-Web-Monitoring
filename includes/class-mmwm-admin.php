@@ -24,6 +24,8 @@ class MMWM_Admin
     public function register_settings()
     {
         register_setting('mmwm_global_options', 'mmwm_default_email', array('sanitize_callback' => 'sanitize_email'));
+        register_setting('mmwm_global_options', 'mmwm_auto_reload_interval', array('sanitize_callback' => 'intval'));
+
         add_settings_section(
             'mmwm_main_settings_section',
             __('Email Settings', 'mm-web-monitoring'),
@@ -37,6 +39,27 @@ class MMWM_Admin
             'mmwm-global-options',
             'mmwm_main_settings_section'
         );
+
+        add_settings_section(
+            'mmwm_ui_settings_section',
+            __('User Interface Settings', 'mm-web-monitoring'),
+            null,
+            'mmwm-global-options'
+        );
+        add_settings_field(
+            'mmwm_auto_reload_interval',
+            __('Auto-Reload Interval (seconds)', 'mm-web-monitoring'),
+            array($this, 'render_auto_reload_interval_field'),
+            'mmwm-global-options',
+            'mmwm_ui_settings_section'
+        );
+    }
+
+    public function render_auto_reload_interval_field()
+    {
+        $interval = get_option('mmwm_auto_reload_interval', 30);
+        echo '<input type="number" name="mmwm_auto_reload_interval" value="' . esc_attr($interval) . '" min="10" max="300" class="small-text" />';
+        echo '<p class="description">' . __('How often (in seconds) the All Websites page should auto-reload. Set between 10-300 seconds. Default: 30 seconds.', 'mm-web-monitoring') . '</p>';
     }
 
     public function render_default_email_field()
@@ -101,8 +124,7 @@ class MMWM_Admin
 
         // Add our custom columns
         $columns['check_result'] = __('Check Result', 'mm-web-monitoring');
-        $columns['ssl_status'] = __('SSL Status', 'mm-web-monitoring');
-        $columns['ssl_expiry'] = __('SSL Expiry', 'mm-web-monitoring');
+        $columns['ssl_info'] = __('SSL Certificate', 'mm-web-monitoring');
         $columns['last_check'] = __('Last Check', 'mm-web-monitoring');
         $columns['next_check'] = __('Next Check', 'mm-web-monitoring');
         $columns['monitoring_status'] = __('Status', 'mm-web-monitoring');
@@ -189,48 +211,34 @@ class MMWM_Admin
                 if ($status === 'CONTENT_ERROR') $status_color = '#ffc107';
                 echo '<span style="font-weight: bold; color: ' . esc_attr($status_color) . ';">' . esc_html($status ?: 'Not Checked') . '</span>';
                 break;
-            case 'ssl_status':
+            case 'ssl_info':
                 $ssl_is_active = get_post_meta($post_id, '_mmwm_ssl_is_active', true);
                 $ssl_error = get_post_meta($post_id, '_mmwm_ssl_error', true);
                 $ssl_days_until_expiry = get_post_meta($post_id, '_mmwm_ssl_days_until_expiry', true);
+                $ssl_expiry_date = get_post_meta($post_id, '_mmwm_ssl_expiry_date', true);
 
                 if ($ssl_is_active === '1') {
+                    $color = '#28a745';
+                    $status_text = 'Active';
+
                     if ($ssl_days_until_expiry !== '' && $ssl_days_until_expiry < 0) {
-                        echo '<span style="color: #dc3545; font-weight: bold;">EXPIRED</span>';
+                        $color = '#dc3545';
+                        $status_text = 'EXPIRED';
                     } elseif ($ssl_days_until_expiry !== '' && $ssl_days_until_expiry <= 10) {
-                        echo '<span style="color: #ffc107; font-weight: bold;">EXPIRING SOON</span>';
-                    } else {
-                        echo '<span style="color: #28a745; font-weight: bold;">ACTIVE</span>';
+                        $color = '#ffc107';
+                        $status_text = 'Expiring Soon';
+                    }
+
+                    echo '<span style="color: ' . esc_attr($color) . '; font-weight: bold;">' . esc_html($status_text) . '</span>';
+
+                    if ($ssl_expiry_date) {
+                        $formatted_date = date('M j, Y', strtotime($ssl_expiry_date));
+                        echo '<br><small style="color: #666;">' . esc_html($formatted_date) . '</small>';
                     }
                 } elseif ($ssl_error) {
-                    echo '<span style="color: #dc3545;" title="' . esc_attr($ssl_error) . '">INACTIVE</span>';
+                    echo '<span style="color: #dc3545;" title="' . esc_attr($ssl_error) . '">Inactive</span>';
                 } else {
                     echo '<span style="color: #777;">Not Checked</span>';
-                }
-                break;
-            case 'ssl_expiry':
-                $ssl_expiry_date = get_post_meta($post_id, '_mmwm_ssl_expiry_date', true);
-                $ssl_days_until_expiry = get_post_meta($post_id, '_mmwm_ssl_days_until_expiry', true);
-                $ssl_is_active = get_post_meta($post_id, '_mmwm_ssl_is_active', true);
-
-                if ($ssl_is_active === '1' && $ssl_expiry_date) {
-                    $color = '#777';
-                    if ($ssl_days_until_expiry < 0) {
-                        $color = '#dc3545';
-                    } elseif ($ssl_days_until_expiry <= 10) {
-                        $color = '#ffc107';
-                    }
-
-                    $formatted_date = date('M j, Y', strtotime($ssl_expiry_date));
-                    $days_text = $ssl_days_until_expiry < 0 ?
-                        abs($ssl_days_until_expiry) . ' days ago' :
-                        $ssl_days_until_expiry . ' days left';
-
-                    echo '<span style="color: ' . esc_attr($color) . ';" title="' . esc_attr($ssl_expiry_date) . '">';
-                    echo esc_html($formatted_date) . '<br><small>(' . esc_html($days_text) . ')</small>';
-                    echo '</span>';
-                } else {
-                    echo '<span style="color: #777;">N/A</span>';
                 }
                 break;
             case 'last_check':
@@ -348,7 +356,8 @@ class MMWM_Admin
         wp_localize_script('mmwm-admin-enhanced', 'mmwm_admin', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('mmwm_ajax_nonce'),
-            'current_screen' => $current_screen->id
+            'current_screen' => $current_screen->id,
+            'auto_reload_interval' => get_option('mmwm_auto_reload_interval', 30)
         ));
 
         $ajax_nonce = wp_create_nonce('mmwm_ajax_nonce');

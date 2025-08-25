@@ -1,7 +1,9 @@
 jQuery(document).ready(function ($) {
 
-    // Auto reload page every 30 seconds untuk halaman All Websites
+    // Auto reload page dengan interval yang bisa dikonfigurasi untuk halaman All Websites
     if (mmwm_admin.current_screen === 'edit-mmwm_website') {
+        var reloadInterval = (parseInt(mmwm_admin.auto_reload_interval) || 30) * 1000; // Convert to milliseconds
+
         var autoReloadInterval = setInterval(function () {
             if (document.hidden) return; // Don't reload if tab is not active
 
@@ -10,11 +12,12 @@ jQuery(document).ready(function ($) {
 
             // Reload page
             location.reload();
-        }, 30000); // 30 seconds
+        }, reloadInterval);
 
-        // Show auto-reload indicator
+        // Show auto-reload indicator with current interval
         if ($('.wrap h1').length > 0) {
-            $('.wrap h1').append(' <span id="mmwm-reload-indicator" style="font-size: 12px; color: #666; display: none;">(Auto-reloading...)</span>');
+            var intervalSeconds = Math.floor(reloadInterval / 1000);
+            $('.wrap h1').append(' <span id="mmwm-reload-indicator" style="font-size: 12px; color: #666; display: none;">(Auto-reloading every ' + intervalSeconds + 's...)</span>');
         }
     }
 

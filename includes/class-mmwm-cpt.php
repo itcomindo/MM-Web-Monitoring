@@ -140,6 +140,37 @@ class MMWM_CPT
                     <div id="mmwm-last-email-log"><?php echo esc_html($email_log ?: 'N/A'); ?></div>
                 </td>
             </tr>
+            <tr valign="top">
+                <th scope="row"><label><?php _e('Domain Monitoring', 'mm-web-monitoring'); ?></label></th>
+                <td>
+                    <?php $domain_monitoring_enabled = get_post_meta($post->ID, '_mmwm_domain_monitoring_enabled', true); ?>
+                    <label>
+                        <input type="checkbox" name="mmwm_domain_monitoring_enabled" value="1" <?php checked($domain_monitoring_enabled, '1'); ?> />
+                        <?php _e('Enable domain expiration monitoring', 'mm-web-monitoring'); ?>
+                    </label>
+                    <p class="description"><?php _e('Monitor domain registration expiration and receive alerts 10 days before expiry.', 'mm-web-monitoring'); ?></p>
+
+                    <?php if ($domain_monitoring_enabled === '1' && $post->ID): ?>
+                        <?php
+                        $domain_expiry_date = get_post_meta($post->ID, '_mmwm_domain_expiry_date', true);
+                        $domain_days_until_expiry = get_post_meta($post->ID, '_mmwm_domain_days_until_expiry', true);
+                        $domain_last_check = get_post_meta($post->ID, '_mmwm_domain_last_check', true);
+                        ?>
+                        <div style="margin-top: 10px; padding: 10px; background: #f9f9f9; border-left: 4px solid #0073aa;">
+                            <strong><?php _e('Domain Information:', 'mm-web-monitoring'); ?></strong><br>
+                            <?php if ($domain_expiry_date): ?>
+                                <strong><?php _e('Expires:', 'mm-web-monitoring'); ?></strong> <?php echo esc_html($domain_expiry_date); ?><br>
+                                <strong><?php _e('Days until expiry:', 'mm-web-monitoring'); ?></strong> <?php echo esc_html($domain_days_until_expiry); ?><br>
+                            <?php endif; ?>
+                            <?php if ($domain_last_check): ?>
+                                <strong><?php _e('Last checked:', 'mm-web-monitoring'); ?></strong> <?php echo esc_html(wp_date('Y-m-d H:i:s', $domain_last_check)); ?>
+                            <?php else: ?>
+                                <em><?php _e('Domain not checked yet. Save to check domain expiration.', 'mm-web-monitoring'); ?></em>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                </td>
+            </tr>
         </table>
 
         <?php if ($post->ID) : ?>
@@ -272,6 +303,19 @@ class MMWM_CPT
             }
         }
 
+        // Handle domain monitoring
+        $domain_monitoring_enabled = isset($_POST['mmwm_domain_monitoring_enabled']) ? '1' : '0';
+        $old_domain_monitoring = get_post_meta($post_id, '_mmwm_domain_monitoring_enabled', true);
+        update_post_meta($post_id, '_mmwm_domain_monitoring_enabled', $domain_monitoring_enabled);
+
+        // If domain monitoring was just enabled or URL changed, check domain expiration
+        if ($domain_monitoring_enabled === '1' && (
+            $old_domain_monitoring !== '1' ||
+            (isset($_POST['mmwm_target_url']) && get_post_meta($post_id, '_mmwm_target_url', true) !== esc_url_raw($_POST['mmwm_target_url']))
+        )) {
+            $this->check_domain_expiration($post_id);
+        }
+
         if ($post->post_status === 'publish' && get_post_meta($post_id, '_mmwm_monitoring_status', true) !== 'active') {
             update_post_meta($post_id, '_mmwm_monitoring_status', 'active');
 
@@ -279,6 +323,87 @@ class MMWM_CPT
             // Panggil fungsi perform_check secara langsung, ini lebih andal daripada menjadwalkan event.
             if (class_exists('MMWM_Cron')) {
                 (new MMWM_Cron())->perform_check($post_id);
+            }
+        }
+    }
+
+    /**
+     * Check domain expiration for a website
+     *
+     * @param int $post_id Website post ID
+     */
+    private function check_domain_expiration($post_id)
+    {
+        $url = get_post_meta($post_id, '_mmwm_target_url', true);
+
+        if (empty($url)) {
+            return;
+        }
+
+        $domain_checker = new MMWM_Domain_Checker();
+        $result = $domain_checker->check_domain_expiration($url);
+
+        // Save domain expiration data
+        update_post_meta($post_id, '_mmwm_domain_last_check', time());
+
+        if ($result['success']) {
+            update_post_meta($post_id, '_mmwm_domain_expiry_date', $result['expiry_date']);
+            update_post_meta($post_id, '_mmwm_domain_days_until_expiry', $result['days_until_expiry']);
+            update_post_meta($post_id, '_mmwm_domain_registrar', $result['registrar']);
+            update_post_meta($post_id, '_mmwm_domain_root_domain', $result['root_domain']);
+            update_post_meta($post_id, '_mmwm_domain_error', '');
+
+            // Send notification if expiring soon
+            if (isset($result['is_expiring_soon']) && $result['is_expiring_soon']) {
+                $this->send_domain_expiring_notification($post_id, $result);
+            }
+        } else {
+            update_post_meta($post_id, '_mmwm_domain_error', $result['error']);
+            update_post_meta($post_id, '_mmwm_domain_expiry_date', '');
+            update_post_meta($post_id, '_mmwm_domain_days_until_expiry', '');
+        }
+    }
+
+    /**
+     * Send domain expiring notification
+     *
+     * @param int $post_id Website post ID
+     * @param array $domain_result Domain check result
+     */
+    private function send_domain_expiring_notification($post_id, $domain_result)
+    {
+        // Check if notification was already sent recently (within 24 hours)
+        $last_domain_notification = get_post_meta($post_id, '_mmwm_domain_last_notification', true);
+
+        if ($last_domain_notification && (time() - $last_domain_notification) < 86400) {
+            return; // Don't spam notifications
+        }
+
+        $title = get_the_title($post_id);
+        $email_to = get_post_meta($post_id, '_mmwm_notification_email', true);
+
+        if (empty($email_to)) {
+            $email_to = get_option('mmwm_default_email', get_option('admin_email'));
+        }
+
+        $subject = "🌐 Domain Registration Expiring Soon: {$title}";
+
+        // Use unified email template
+        $email_data = [
+            'title' => $title,
+            'domain' => $domain_result['root_domain'],
+            'days_left' => $domain_result['days_until_expiry'],
+            'expiry_date' => $domain_result['expiry_date'],
+            'registrar' => $domain_result['registrar'] ?? 'Unknown'
+        ];
+
+        $body = MMWM_Email_Template::build_domain_expiring_notification($email_data);
+        $headers = MMWM_Email_Template::get_html_headers();
+
+        if (function_exists('wp_mail')) {
+            $sent = wp_mail($email_to, $subject, $body, $headers);
+            if ($sent) {
+                update_post_meta($post_id, '_mmwm_domain_last_notification', time());
             }
         }
     }

@@ -171,17 +171,22 @@ class MMWM_Checker implements MMWM_Checker_Interface
         $days_left = $ssl_result['days_until_expiry'];
         $expiry_date = $ssl_result['expiry_date'];
 
-        $subject = "SSL Certificate Expiring Soon: {$title}";
+        $subject = "🔒 SSL Certificate Expiring Soon: {$title}";
 
-        $body = "SSL Certificate Expiring Warning:\n\n";
-        $body .= "Website: {$title} ({$url})\n";
-        $body .= "SSL Certificate expires in: {$days_left} days\n";
-        $body .= "Expiry Date: {$expiry_date}\n";
-        $body .= "Issuer: " . ($ssl_result['issuer'] ?? 'Unknown') . "\n\n";
-        $body .= "Please renew your SSL certificate before it expires to avoid website downtime.\n";
+        // Use unified email template
+        $email_data = [
+            'title' => $title,
+            'url' => $url,
+            'days_left' => $days_left,
+            'expiry_date' => $expiry_date,
+            'issuer' => $ssl_result['issuer'] ?? 'Unknown'
+        ];
+
+        $body = MMWM_Email_Template::build_ssl_expiring_notification($email_data);
+        $headers = MMWM_Email_Template::get_html_headers();
 
         if (function_exists('wp_mail')) {
-            $sent = wp_mail($email_to, $subject, $body);
+            $sent = wp_mail($email_to, $subject, $body, $headers);
             if ($sent) {
                 update_post_meta($post_id, '_mmwm_ssl_last_notification', time());
             }

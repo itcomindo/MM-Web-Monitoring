@@ -104,17 +104,22 @@ class MMWM_Cron
 
         $host_in = get_post_meta($post_id, '_mmwm_host_in', true) ?: 'Not specified';
 
-        $subject = sprintf('Monitoring Report for %s: %s', get_the_title($post_id), $new_status);
+        $subject = sprintf('🔍 Monitoring Report for %s: %s', get_the_title($post_id), $new_status);
 
-        $body  = "Monitoring Report:\n\n";
-        $body .= "Website: " . get_the_title($post_id) . " (" . $url . ")\n";
-        $body .= "Previous Status: " . ($old_status ?: 'N/A') . "\n";
-        $body .= "Current Status: " . $new_status . "\n";
-        $body .= "Check Time: " . wp_date('Y-m-d H:i:s', time()) . "\n";
-        $body .= "Reason/Details: " . $reason . "\n";
-        $body .= "Host in: " . $host_in . "\n\n";
+        // Use unified email template
+        $email_data = [
+            'title' => get_the_title($post_id),
+            'url' => $url,
+            'old_status' => $old_status,
+            'new_status' => $new_status,
+            'reason' => $reason,
+            'host_in' => $host_in
+        ];
 
-        return wp_mail($email_to, $subject, $body);
+        $body = MMWM_Email_Template::build_monitoring_report($email_data);
+        $headers = MMWM_Email_Template::get_html_headers();
+
+        return wp_mail($email_to, $subject, $body, $headers);
     }
 
     private function find_element_in_html($html, $selector)
