@@ -7,6 +7,20 @@ if (! defined('ABSPATH')) {
 
 class MMWM_Cron
 {
+    /**
+     * Scheduler instance
+     *
+     * @var MMWM_Scheduler
+     */
+    private $scheduler;
+
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->scheduler = new MMWM_Scheduler();
+    }
 
     public function add_cron_intervals($schedules)
     {
@@ -19,97 +33,15 @@ class MMWM_Cron
 
     public function run_checks()
     {
-        $args = array(
-            'post_type'      => 'mmwm_website',
-            'posts_per_page' => -1,
-            'post_status'    => 'publish',
-            'meta_query'     => array(
-                array(
-                    'key'     => '_mmwm_monitoring_status',
-                    'value'   => 'active',
-                    'compare' => '=',
-                ),
-            ),
-        );
-
-        $websites = new WP_Query($args);
-
-        if ($websites->have_posts()) {
-            while ($websites->have_posts()) {
-                $websites->the_post();
-                $post_id = get_the_ID();
-                $interval = get_post_meta($post_id, '_mmwm_interval', true);
-                $last_check = get_post_meta($post_id, '_mmwm_last_check', true);
-
-                if (empty($last_check) || (time() - $last_check) >= ($interval * 60)) {
-                    $this->perform_check($post_id);
-                }
-            }
-        }
-        wp_reset_postdata();
+        // Use the new scheduler for better performance and modularity
+        return $this->scheduler->schedule_checks();
     }
 
     public function perform_check($post_id)
     {
-        $url = get_post_meta($post_id, '_mmwm_target_url', true);
-        $check_type = get_post_meta($post_id, '_mmwm_check_type', true);
-
-        // --- PERUBAHAN UTAMA DI SINI ---
-        $args = [
-            'timeout'     => 20,
-            'sslverify'   => false,
-            'user-agent'  => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-            'headers'     => [
-                'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                'Accept-Language' => 'en-US,en;q=0.9',
-                'Accept-Encoding' => 'gzip, deflate, br',
-                'Cache-Control'   => 'no-cache',
-                'Pragma'          => 'no-cache',
-                // Menambahkan header Referer secara eksplisit
-                'Referer'         => home_url(),
-            ],
-        ];
-        // --- AKHIR PERUBAHAN ---
-
-        $response = wp_remote_get($url, $args);
-        $new_status = '';
-        $reason = '';
-
-        if (is_wp_error($response)) {
-            $new_status = 'DOWN';
-            $reason = 'Request Error: ' . $response->get_error_message();
-            $this->update_status($post_id, $new_status, $reason);
-            return;
-        }
-
-        $response_code = wp_remote_retrieve_response_code($response);
-        if ($response_code >= 400) {
-            $new_status = 'DOWN';
-            $reason = "HTTP Error: {$response_code}";
-            $this->update_status($post_id, $new_status, $reason);
-            return;
-        }
-
-        if ($check_type === 'fetch_html') {
-            $html_selector = get_post_meta($post_id, '_mmwm_html_selector', true);
-            if (! empty($html_selector)) {
-                $body = wp_remote_retrieve_body($response);
-                if (! $this->find_element_in_html($body, $html_selector)) {
-                    $new_status = 'CONTENT_ERROR';
-                    $reason = "HTML Check: Element '{$html_selector}' not found.";
-                    $this->update_status($post_id, $new_status, $reason);
-                    return;
-                }
-            }
-        }
-
-        $new_status = 'UP';
-        $reason = "HTTP {$response_code} OK";
-        if ($check_type === 'fetch_html' && !empty($html_selector)) {
-            $reason .= ' (HTML element found)';
-        }
-
-        $this->update_status($post_id, $new_status, $reason);
+        // Use the new checker for better performance and modularity
+        $checker = new MMWM_Checker();
+        return $checker->perform_check($post_id);
     }
 
     private function update_status($post_id, $new_status, $reason = '')

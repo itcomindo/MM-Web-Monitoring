@@ -8,10 +8,33 @@ if (! defined('ABSPATH')) {
 class MMWM_Core
 {
 
-    public function __construct() {}
+    public function __construct()
+    {
+        $this->load_dependencies();
+    }
 
     private function load_dependencies()
     {
+        // Load interfaces
+        require_once MMWM_PLUGIN_DIR . 'includes/interfaces/interface-mmwm-checker.php';
+        require_once MMWM_PLUGIN_DIR . 'includes/interfaces/interface-mmwm-notifier.php';
+        require_once MMWM_PLUGIN_DIR . 'includes/interfaces/interface-mmwm-scheduler.php';
+
+        // Load utilities
+        require_once MMWM_PLUGIN_DIR . 'includes/utilities/class-mmwm-validator.php';
+        require_once MMWM_PLUGIN_DIR . 'includes/utilities/class-mmwm-sanitizer.php';
+        require_once MMWM_PLUGIN_DIR . 'includes/utilities/class-mmwm-html-parser.php';
+
+        // Load core classes
+        require_once MMWM_PLUGIN_DIR . 'includes/core/class-mmwm-loader.php';
+        require_once MMWM_PLUGIN_DIR . 'includes/core/class-mmwm-activator.php';
+
+        // Load monitoring classes
+        require_once MMWM_PLUGIN_DIR . 'includes/monitoring/class-mmwm-checker.php';
+        require_once MMWM_PLUGIN_DIR . 'includes/monitoring/class-mmwm-notifier.php';
+        require_once MMWM_PLUGIN_DIR . 'includes/monitoring/class-mmwm-scheduler.php';
+
+        // Load existing classes
         require_once MMWM_PLUGIN_DIR . 'includes/class-mmwm-cpt.php';
         require_once MMWM_PLUGIN_DIR . 'includes/class-mmwm-cron.php';
         require_once MMWM_PLUGIN_DIR . 'includes/class-mmwm-admin.php';

@@ -135,14 +135,8 @@ class MMWM_Admin
                     echo 'Inactive';
                     break;
                 }
-                $last_check_timestamp = get_post_meta($post_id, '_mmwm_last_check', true);
-                $interval = get_post_meta($post_id, '_mmwm_interval', true) ?: 15;
-                if ($last_check_timestamp) {
-                    $next_check_timestamp = $last_check_timestamp + ($interval * 60);
-                    echo '<span class="mmwm-next-check" data-timestamp="' . esc_attr($next_check_timestamp) . '">Calculating...</span>';
-                } else {
-                    echo 'Now';
-                }
+                $scheduler = new MMWM_Scheduler();
+                echo '<span class="mmwm-next-check">' . esc_html($scheduler->get_next_check_display($post_id)) . '</span>';
                 break;
             case 'monitoring_status':
                 $monitoring_status = get_post_meta($post_id, '_mmwm_monitoring_status', true) ?: 'stopped';
@@ -390,7 +384,8 @@ class MMWM_Admin
                     });
 
                     $('#mmwm-bulk-controls button').on('click', function() {
-                        /* ... kode sama dari versi sebelumnya ... */ });
+                        /* ... kode sama dari versi sebelumnya ... */
+                    });
                 });
             </script>
         <?php endif;

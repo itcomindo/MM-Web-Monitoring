@@ -47,5 +47,5 @@ mmwm_run_plugin();
 /**
  * Activation and deactivation hooks.
  */
-register_activation_hook(__FILE__, array('MMWM_Core', 'activate'));
-register_deactivation_hook(__FILE__, array('MMWM_Core', 'deactivate'));
+register_activation_hook(__FILE__, array('MMWM_Activator', 'activate'));
+register_deactivation_hook(__FILE__, array('MMWM_Activator', 'deactivate'));
