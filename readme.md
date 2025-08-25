@@ -17,15 +17,45 @@
 
 ---
 
-## 🚀 **Mengapa MM Web Monitoring?**
+## 🚀 **Why MM Web Monitoring?**
 
-Bayangkan Anda mengelola 50+ website client, tiba-tiba ada 5 website down bersamaan di tengah malam. Dengan MM Web Monitoring, Anda akan tahu dalam hitungan menit dan bisa bertindak cepat. Plugin ini dirancang khusus untuk:
+Imagine managing 50+ client websites when suddenly 5 websites go down simultaneously in the middle of the night. With MM Web Monitoring, you'll know within minutes and can act quickly. This plugin is specifically designed for:
 
-- 🏢 **Web Agencies** - Monitor semua website client dari satu tempat
-- 💻 **Freelance Developers** - Jaga reputasi dengan uptime monitoring 24/7  
-- 🛒 **E-commerce Owners** - Pastikan toko online selalu accessible
-- 📰 **Content Creators** - Monitor blog dan website portfolio
-- 🏗️ **System Administrators** - Centralized monitoring untuk multiple properties
+- 🏢 **Web Agencies** - Monitor all client websites from one dashboard
+- 💻 **Freelance Developers** - Maintain reputation with 24/7 uptime monitoring  
+- 🛒 **E-commerce Owners** - Ensure online stores are always accessible
+- 📰 **Content Creators** - Monitor blogs and portfolio websites
+- 🏗️ **System Administrators** - Centralized monitoring for multiple properties
+
+---
+
+## 🛡️ **The Problem with External Monitoring Services**
+
+### **Real-World Challenge: Security vs. Monitoring**
+
+Many website owners rely on external monitoring services like **Netumo.app**, **UptimeRobot**, or similar platforms. While these services work well in basic scenarios, they face a critical limitation in today's security-conscious environment.
+
+**The Security Dilemma:**
+- 🚨 **Increased Brute Force Attacks**: Rising cybersecurity threats require stricter website protection
+- � **Geo-blocking Requirements**: Many sites now block traffic from specific countries
+- 🤖 **Bot Protection**: Advanced security rules block automated requests
+- 🔥 **Cloudflare Security**: WAF rules and rate limiting can block monitoring services
+- 🚫 **False Negatives**: External monitors report "down" when sites are actually protected, not down
+
+### **The Traditional Workaround Problems:**
+1. **IP Whitelisting Complexity**: Managing dozens of monitoring service IPs
+2. **Service IP Changes**: Monitoring services change IPs without notice
+3. **Multiple Security Layers**: Cloudflare + server + application level blocking
+4. **Cost Escalation**: Premium plans required for IP whitelisting features
+
+### **Our Solution: Self-Hosted Monitoring**
+
+MM Web Monitoring solves this by monitoring from **your own WordPress installation**:
+- ✅ **Known IP Address**: Your monitoring server IP is under your control
+- ✅ **Easy Cloudflare Allowlisting**: Simple security rule configuration
+- ✅ **No External Dependencies**: No third-party service disruptions
+- ✅ **Cost Effective**: One-time plugin cost vs. recurring subscriptions
+- ✅ **Complete Control**: Custom monitoring logic for your specific needs
 
 ---
 
@@ -112,6 +142,152 @@ unzip mm-web-monitoring.zip
    - Email settings
 
 3. **Test & Go Live**: Click "Check Now" → Verify results → Start monitoring
+
+---
+
+## ☁️ **Special Setup for Cloudflare Users**
+
+### **The Cloudflare Challenge**
+
+If your monitored websites use Cloudflare with security rules (geo-blocking, bot protection, WAF), external monitoring services often get blocked. MM Web Monitoring solves this by monitoring from your own server, but you need to configure Cloudflare to allow your monitoring server.
+
+### **Solution: Allowlist Your Monitoring Server**
+
+#### **Step 1: Identify Your Monitoring Server**
+```bash
+# Method 1: Check your monitoring server's IP
+curl -4 icanhazip.com
+
+# Method 2: Use WordPress admin
+# Go to: Web Monitoring > Global Options
+# Your server IP will be displayed in the info section
+```
+
+#### **Step 2: Create Cloudflare Security Rule**
+
+1. **Login to Cloudflare Dashboard**
+2. **Select your domain** → Go to **Security** → **WAF**
+3. **Create Custom Rule** with these settings:
+
+**Rule Name**: `Allow MM Web Monitoring Server`
+
+**Expression Builder**:
+```javascript
+(ip.src eq YOUR_MONITORING_SERVER_IP) or 
+(cf.client.bot eq false and http.user_agent contains "WordPress")
+```
+
+**Alternative Advanced Expression**:
+```javascript
+(ip.src eq YOUR_MONITORING_SERVER_IP) or
+(http.host eq "yourmonitoringdomain.com" and http.user_agent contains "MM-Web-Monitoring")
+```
+
+**Action**: `Allow`
+**Priority**: `1` (highest priority)
+
+#### **Step 3: Configure HTTP User Agent (Optional)**
+
+Add this to your monitoring server's wp-config.php:
+```php
+// Custom User Agent for MM Web Monitoring
+define('MMWM_USER_AGENT', 'MM-Web-Monitoring/1.0.7 (WordPress/' . get_bloginfo('version') . ')');
+```
+
+#### **Step 4: Hostname-Based Allowlisting (Recommended)**
+
+**For Advanced Users:**
+1. **Create dedicated subdomain** for monitoring: `monitor.yourdomain.com`
+2. **Point subdomain** to your monitoring server IP
+3. **Create Cloudflare Rule**:
+```javascript
+(http.x_forwarded_for contains "monitor.yourdomain.com") or 
+(cf.client.bot eq false and http.referer contains "monitor.yourdomain.com")
+```
+
+### **Testing Your Cloudflare Configuration**
+
+#### **Verification Steps:**
+```bash
+# Test 1: Direct IP check
+curl -I https://yourprotectedsite.com
+
+# Test 2: From monitoring server
+# SSH to your monitoring server and run:
+curl -I -H "User-Agent: MM-Web-Monitoring/1.0.7" https://yourprotectedsite.com
+
+# Expected: HTTP/1.1 200 OK (not 403 Forbidden)
+```
+
+#### **Common Cloudflare Rule Examples:**
+
+**Basic IP Allowlist:**
+```javascript
+(ip.src eq 203.0.113.1)
+```
+
+**Multiple Monitoring Servers:**
+```javascript
+(ip.src in {203.0.113.1 203.0.113.2 203.0.113.3})
+```
+
+**Hostname + User Agent:**
+```javascript
+(http.host eq "monitor.yourdomain.com" and http.user_agent contains "MM-Web-Monitoring")
+```
+
+**Advanced Security (recommended):**
+```javascript
+(ip.src eq 203.0.113.1 and http.user_agent contains "MM-Web-Monitoring" and http.x_forwarded_for contains "monitor.yourdomain.com")
+```
+
+### **Troubleshooting Cloudflare Issues**
+
+<details>
+<summary><strong>🚨 Monitoring shows "DOWN" but site is accessible</strong></summary>
+
+**Cause**: Cloudflare is blocking your monitoring requests
+
+**Solutions**:
+1. Check Cloudflare **Firewall Events** → Look for blocked requests from your monitoring IP
+2. Verify your security rule is **active** and has **highest priority**
+3. Test rule syntax in **Expression Editor**
+4. Ensure monitoring server IP is correct (dynamic IPs change)
+
+</details>
+
+<details>
+<summary><strong>🔧 Security Rule Not Working</strong></summary>
+
+**Debugging Steps**:
+1. **Rule Priority**: Ensure allow rule has priority 1
+2. **IP Format**: Use IPv4 format (203.0.113.1) not IPv6
+3. **Expression Syntax**: Test in Cloudflare Expression Editor
+4. **Rule Deployment**: Wait 2-3 minutes for rule propagation
+
+</details>
+
+<details>
+<summary><strong>📡 Dynamic IP Monitoring Server</strong></summary>
+
+**For Dynamic IPs**:
+1. **Use Hostname-based rules** instead of IP-based
+2. **Configure DDNS** for consistent hostname resolution
+3. **Monitor IP changes** and update Cloudflare rules automatically
+4. **Consider static IP** from hosting provider
+
+</details>
+
+### **Best Practices for Cloudflare + MM Web Monitoring**
+
+✅ **Use dedicated monitoring subdomain**  
+✅ **Implement hostname-based allowlisting**  
+✅ **Set highest priority for allow rules**  
+✅ **Test after every Cloudflare configuration change**  
+✅ **Monitor Cloudflare firewall events regularly**  
+✅ **Document your security rules for team members**  
+✅ **Use specific User-Agent strings for identification**  
+✅ **Consider static IP for monitoring server**  
 
 ---
 
@@ -215,46 +391,211 @@ Go to `Web Monitoring > Global Options`:
 
 ---
 
-## 🚨 **Troubleshooting & FAQ**
+## ❓ **Frequently Asked Questions (FAQ)**
 
 <details>
-<summary><strong>❓ Website shows "Check Failed" - what to do?</strong></summary>
+<summary><strong>Q: Why should I choose MM Web Monitoring over external services?</strong></summary>
 
-1. **Check URL Format**: Must include `http://` or `https://`
-2. **Server Connectivity**: Ensure your WordPress can make outbound connections
-3. **Firewall Issues**: Check if target site blocks your server IP
-4. **SSL Issues**: Use HTTP instead of HTTPS for testing
-5. **HTML Selector**: If using HTML check, verify selector exists on page
+**A**: External monitoring services often face these challenges:
+- **Blocked by Cloudflare** and other security systems
+- **Limited customization** and rigid check intervals
+- **Data privacy concerns** with third-party monitoring
+- **Cost scaling issues** for multiple websites
+- **Geographic limitations** affecting accuracy
+
+MM Web Monitoring monitors from **your own server**, giving you complete control and bypassing security restrictions.
 
 </details>
 
 <details>
-<summary><strong>❓ Domain monitoring not working?</strong></summary>
+<summary><strong>Q: How does domain expiration monitoring work?</strong></summary>
 
-1. **Try Manual Override**: Use date picker if auto-check fails
-2. **Check TLD Support**: Standard TLDs (.com, .net) usually work best
-3. **WHOIS Access**: Ensure server can access WHOIS servers
-4. **Complex URLs**: Plugin auto-extracts root domain (admin.site.com → site.com)
-
-</details>
-
-<details>
-<summary><strong>❓ Email notifications not sending?</strong></summary>
-
-1. **Test WordPress Email**: Try other WordPress email functions
-2. **Check Spam Folder**: HTML emails sometimes flagged as spam  
-3. **SMTP Plugin**: Consider using SMTP plugin for better delivery
-4. **Email Logs**: Check plugin email logs in website edit screen
+**A**: The plugin uses multiple methods:
+1. **WHOIS lookup** - Primary method for accurate expiration dates
+2. **Manual date picker** - Fallback when WHOIS fails
+3. **Smart TLD parsing** - Handles various domain extensions (.com, .org, .co.uk, etc.)
+4. **Error handling** - Graceful fallback when domain data unavailable
 
 </details>
 
 <details>
-<summary><strong>❓ Performance concerns with many websites?</strong></summary>
+<summary><strong>Q: Can I set different monitoring intervals for each website?</strong></summary>
 
-1. **Stagger Intervals**: Don't set all websites to same interval
-2. **Use Longer Intervals**: 30min-1hour for stable sites
-3. **Monitor CPU Usage**: Plugin is optimized but monitor server resources
-4. **Database Cleanup**: Plugin auto-manages old data
+**A**: Yes! Each website can have its own monitoring schedule:
+- **Critical sites**: Every 5 minutes
+- **Standard sites**: Every hour
+- **Less critical**: Every 6-24 hours
+- **Custom intervals**: From 5 minutes to 24 hours
+
+</details>
+
+<details>
+<summary><strong>Q: What happens if my server has dynamic IP?</strong></summary>
+
+**A**: For Cloudflare users with dynamic IP:
+1. Use **hostname-based allowlisting** instead of IP-based
+2. Set up **Dynamic DNS (DDNS)** for consistent hostname
+3. Configure **subdomain monitoring** (monitor.yourdomain.com)
+4. Update Cloudflare rules when IP changes
+
+</details>
+
+<details>
+<summary><strong>Q: How many websites can I monitor?</strong></summary>
+
+**A**: No artificial limits! Performance depends on:
+- **Server resources** (CPU, memory, bandwidth)
+- **Monitoring intervals** (more frequent = more resources)
+- **Check complexity** (simple HTTP vs full page analysis)
+- **Email notification frequency**
+
+Typical servers handle 50-200 websites comfortably.
+
+</details>
+
+<details>
+<summary><strong>Q: Does it work with SSL certificates from Let's Encrypt?</strong></summary>
+
+**A**: Yes! MM Web Monitoring checks **any SSL certificate** including:
+- **Let's Encrypt** (free certificates)
+- **Commercial certificates** (Comodo, DigiCert, etc.)
+- **Wildcard certificates**
+- **Multi-domain (SAN) certificates**
+- **Self-signed certificates** (with warnings)
+
+</details>
+
+---
+
+## 🛠️ **Troubleshooting Guide**
+
+### **Common Issues & Solutions**
+
+<details>
+<summary><strong>🚨 Website shows "DOWN" but is accessible in browser</strong></summary>
+
+**Possible Causes**:
+1. **Cloudflare blocking** monitoring requests
+2. **Server IP blocked** by target website
+3. **User-Agent restrictions** on target site
+4. **Geographic restrictions** (geo-blocking)
+
+**Solutions**:
+1. Configure Cloudflare allowlisting (see guide above)
+2. Check target website's firewall logs
+3. Use custom User-Agent in WordPress config
+4. Verify monitoring server location/IP reputation
+
+</details>
+
+<details>
+<summary><strong>🔧 Domain expiration shows "Unknown" or wrong date</strong></summary>
+
+**Possible Causes**:
+1. **WHOIS server restrictions** for certain TLDs
+2. **Privacy protection** hiding domain information
+3. **Network connectivity** issues from monitoring server
+4. **Rate limiting** from WHOIS servers
+
+**Solutions**:
+1. **Use manual date picker** as fallback
+2. **Check domain privacy settings**
+3. **Verify server internet connectivity**
+4. **Space out domain checks** to avoid rate limits
+
+</details>
+
+<details>
+<summary><strong>📧 Email notifications not working</strong></summary>
+
+**Possible Causes**:
+1. **WordPress mail function** not configured
+2. **SMTP settings** incorrect or missing
+3. **Email marked as spam** by recipient
+4. **Server mail restrictions**
+
+**Solutions**:
+1. **Install SMTP plugin** (WP Mail SMTP recommended)
+2. **Configure proper SMTP credentials**
+3. **Add sender to email whitelist**
+4. **Check server mail logs**
+5. **Test with WordPress mail function**
+
+</details>
+
+<details>
+<summary><strong>⏰ Monitoring not running automatically</strong></summary>
+
+**Possible Causes**:
+1. **WordPress cron disabled** or not triggering
+2. **Server-level cron conflicts**
+3. **Plugin cron not scheduled** properly
+4. **Cache plugins interfering**
+
+**Solutions**:
+1. **Enable WordPress cron** in wp-config.php
+2. **Set up server-level cron** for wp-cron.php
+3. **Check plugin activation** and re-save settings
+4. **Clear cache** and test manual triggers
+
+</details>
+
+<details>
+<summary><strong>🎨 Radio buttons not styling properly</strong></summary>
+
+**Possible Causes**:
+1. **Theme CSS conflicts** overriding plugin styles
+2. **CSS caching** not updated
+3. **JavaScript not loading** properly
+
+**Solutions**:
+1. **Clear all caches** (page, plugin, server)
+2. **Check browser console** for JavaScript errors
+3. **Test with default theme** to isolate conflicts
+4. **Force CSS refresh** with hard reload (Ctrl+F5)
+
+</details>
+
+### **Performance Optimization**
+
+<details>
+<summary><strong>⚡ Optimizing for Large Numbers of Websites</strong></summary>
+
+**Server Resource Management**:
+```php
+// Add to wp-config.php for large monitoring setups
+define('MMWM_MAX_CONCURRENT_CHECKS', 5);  // Limit simultaneous checks
+define('MMWM_TIMEOUT_SECONDS', 30);       // Reduce timeout for faster processing
+define('MMWM_BATCH_SIZE', 10);            // Process websites in batches
+```
+
+**Recommended Settings**:
+- **Stagger monitoring intervals** across websites
+- **Use longer intervals** for stable sites
+- **Monitor critical sites more frequently**
+- **Group checks by server response time**
+
+</details>
+
+<details>
+<summary><strong>📊 Database Optimization</strong></summary>
+
+**Clean Up Old Data**:
+```sql
+-- Remove old monitoring results (optional)
+DELETE FROM wp_postmeta 
+WHERE meta_key LIKE 'mmwm_%' 
+AND meta_value LIKE '%last_check%' 
+AND post_id IN (
+    SELECT ID FROM wp_posts 
+    WHERE post_date < DATE_SUB(NOW(), INTERVAL 6 MONTH)
+);
+```
+
+**Index Optimization**:
+- Plugin automatically creates necessary indexes
+- **Monitor database size** with large datasets
+- **Archive old results** if needed
 
 </details>
 
@@ -354,6 +695,120 @@ add_filter('mmwm_custom_intervals', function($intervals) {
 - **📧 Email Notifications**: Basic email alerts for downtime
 - **⚙️ WordPress Integration**: Custom post type for website management
 - **📊 Admin Dashboard**: Simple monitoring overview
+
+---
+
+## 💡 **Pro Tips & Best Practices**
+
+### **🎯 Monitoring Strategy**
+
+**Interval Optimization:**
+- **Critical business sites**: 5-15 minutes
+- **Standard websites**: 30-60 minutes  
+- **Development/staging**: 2-6 hours
+- **Archive/backup sites**: 12-24 hours
+
+**Alert Fatigue Prevention:**
+- **Use escalation delays** (wait 2-3 failed checks before alerting)
+- **Group notifications** by time periods
+- **Set different alert thresholds** for different site types
+- **Monitor during business hours** for non-critical sites
+
+### **🔐 Security Considerations**
+
+**Server Hardening:**
+```php
+// Add to wp-config.php for enhanced security
+define('MMWM_RESTRICT_ACCESS', true);        // Limit admin access
+define('MMWM_LOG_SECURITY_EVENTS', true);    // Log security events
+define('MMWM_REQUIRE_AUTH_HEADERS', true);   // Require authentication headers
+```
+
+**Network Security:**
+- **Use dedicated monitoring subdomain**
+- **Implement IP allowlisting** where possible
+- **Monitor from trusted server locations**
+- **Regular security audits** of monitoring rules
+
+### **📈 Scaling for Growth**
+
+**Multi-Server Setup:**
+```bash
+# For large enterprises - distribute monitoring load
+# Server 1: Critical websites (every 5-15 min)
+# Server 2: Standard websites (every 30-60 min)  
+# Server 3: Archive/development sites (every 6-24 hours)
+```
+
+**Database Management:**
+- **Archive old results** after 6-12 months
+- **Use database indexing** for faster queries
+- **Monitor disk space** usage regularly
+- **Backup configuration settings** before major changes
+
+### **🚀 Advanced Integration**
+
+**Webhook Integration:**
+```php
+// Custom webhook for external systems
+add_action('mmwm_website_status_changed', function($post_id, $old_status, $new_status) {
+    $webhook_url = 'https://your-system.com/webhook';
+    $data = [
+        'website_id' => $post_id,
+        'old_status' => $old_status,
+        'new_status' => $new_status,
+        'timestamp' => current_time('timestamp')
+    ];
+    
+    wp_remote_post($webhook_url, [
+        'body' => json_encode($data),
+        'headers' => ['Content-Type' => 'application/json']
+    ]);
+}, 10, 3);
+```
+
+**Slack/Teams Integration:**
+```php
+// Send alerts to Slack/Teams
+add_filter('mmwm_notification_channels', function($channels) {
+    $channels['slack'] = [
+        'webhook_url' => 'https://hooks.slack.com/your-webhook',
+        'channel' => '#monitoring-alerts',
+        'enabled' => true
+    ];
+    return $channels;
+});
+```
+
+### **🌍 Global Monitoring Setup**
+
+**Multi-Region Strategy:**
+- **Primary monitoring server**: Main business location
+- **Secondary monitors**: Different geographic regions
+- **Failover logic**: Switch regions if primary fails
+- **Latency consideration**: Choose servers close to target websites
+
+**Time Zone Management:**
+```php
+// Configure monitoring for different time zones
+define('MMWM_BUSINESS_HOURS_START', 8);   // 8 AM local time
+define('MMWM_BUSINESS_HOURS_END', 18);    // 6 PM local time
+define('MMWM_WEEKEND_MONITORING', false); // Skip weekends for some sites
+```
+
+### **📊 Reporting & Analytics**
+
+**Custom Dashboards:**
+- **Export monitoring data** to external analytics
+- **Create SLA reports** for clients/management
+- **Track uptime trends** over time
+- **Monitor response time patterns**
+
+**Performance Metrics:**
+- **Average response time** per website
+- **Uptime percentage** calculations
+- **SSL certificate renewal tracking**
+- **Domain expiration timeline**
 
 ---
 
