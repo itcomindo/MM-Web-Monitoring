@@ -101,6 +101,8 @@ class MMWM_Admin
 
         // Add our custom columns
         $columns['check_result'] = __('Check Result', 'mm-web-monitoring');
+        $columns['ssl_status'] = __('SSL Status', 'mm-web-monitoring');
+        $columns['ssl_expiry'] = __('SSL Expiry', 'mm-web-monitoring');
         $columns['last_check'] = __('Last Check', 'mm-web-monitoring');
         $columns['next_check'] = __('Next Check', 'mm-web-monitoring');
         $columns['monitoring_status'] = __('Status', 'mm-web-monitoring');
@@ -114,6 +116,68 @@ class MMWM_Admin
         return $columns;
     }
 
+    /**
+     * Add custom bulk actions
+     */
+    public function add_bulk_actions($bulk_actions)
+    {
+        $bulk_actions['mmwm_check_now'] = __('Check Now', 'mm-web-monitoring');
+        $bulk_actions['mmwm_start_monitoring'] = __('Start Monitoring', 'mm-web-monitoring');
+        $bulk_actions['mmwm_pause_monitoring'] = __('Pause Monitoring', 'mm-web-monitoring');
+        $bulk_actions['mmwm_stop_monitoring'] = __('Stop Monitoring', 'mm-web-monitoring');
+        return $bulk_actions;
+    }
+
+    /**
+     * Handle custom bulk actions
+     */
+    public function handle_bulk_actions($redirect_to, $doaction, $post_ids)
+    {
+        if (!in_array($doaction, ['mmwm_check_now', 'mmwm_start_monitoring', 'mmwm_pause_monitoring', 'mmwm_stop_monitoring'])) {
+            return $redirect_to;
+        }
+
+        $processed = 0;
+        $cron = new MMWM_Cron();
+
+        foreach ($post_ids as $post_id) {
+            switch ($doaction) {
+                case 'mmwm_check_now':
+                    $cron->perform_check($post_id);
+                    $processed++;
+                    break;
+                case 'mmwm_start_monitoring':
+                    update_post_meta($post_id, '_mmwm_monitoring_status', 'active');
+                    $processed++;
+                    break;
+                case 'mmwm_pause_monitoring':
+                    update_post_meta($post_id, '_mmwm_monitoring_status', 'paused');
+                    $processed++;
+                    break;
+                case 'mmwm_stop_monitoring':
+                    update_post_meta($post_id, '_mmwm_monitoring_status', 'stopped');
+                    $processed++;
+                    break;
+            }
+        }
+
+        $redirect_to = add_query_arg('mmwm_processed', $processed, $redirect_to);
+        return $redirect_to;
+    }
+
+    /**
+     * Show admin notice for bulk actions
+     */
+    public function show_bulk_action_admin_notice()
+    {
+        if (!empty($_REQUEST['mmwm_processed'])) {
+            $processed = intval($_REQUEST['mmwm_processed']);
+            printf('<div id="message" class="updated notice is-dismissible"><p>' .
+                _n('Processed %d website.', 'Processed %d websites.', $processed, 'mm-web-monitoring') .
+                '</p></div>', $processed);
+        }
+    }
+
     public function render_custom_columns($column, $post_id)
     {
         switch ($column) {
@@ -124,6 +188,50 @@ class MMWM_Admin
                 if ($status === 'DOWN') $status_color = '#dc3545';
                 if ($status === 'CONTENT_ERROR') $status_color = '#ffc107';
                 echo '<span style="font-weight: bold; color: ' . esc_attr($status_color) . ';">' . esc_html($status ?: 'Not Checked') . '</span>';
+                break;
+            case 'ssl_status':
+                $ssl_is_active = get_post_meta($post_id, '_mmwm_ssl_is_active', true);
+                $ssl_error = get_post_meta($post_id, '_mmwm_ssl_error', true);
+                $ssl_days_until_expiry = get_post_meta($post_id, '_mmwm_ssl_days_until_expiry', true);
+
+                if ($ssl_is_active === '1') {
+                    if ($ssl_days_until_expiry !== '' && $ssl_days_until_expiry < 0) {
+                        echo '<span style="color: #dc3545; font-weight: bold;">EXPIRED</span>';
+                    } elseif ($ssl_days_until_expiry !== '' && $ssl_days_until_expiry <= 10) {
+                        echo '<span style="color: #ffc107; font-weight: bold;">EXPIRING SOON</span>';
+                    } else {
+                        echo '<span style="color: #28a745; font-weight: bold;">ACTIVE</span>';
+                    }
+                } elseif ($ssl_error) {
+                    echo '<span style="color: #dc3545;" title="' . esc_attr($ssl_error) . '">INACTIVE</span>';
+                } else {
+                    echo '<span style="color: #777;">Not Checked</span>';
+                }
+                break;
+            case 'ssl_expiry':
+                $ssl_expiry_date = get_post_meta($post_id, '_mmwm_ssl_expiry_date', true);
+                $ssl_days_until_expiry = get_post_meta($post_id, '_mmwm_ssl_days_until_expiry', true);
+                $ssl_is_active = get_post_meta($post_id, '_mmwm_ssl_is_active', true);
+
+                if ($ssl_is_active === '1' && $ssl_expiry_date) {
+                    $color = '#777';
+                    if ($ssl_days_until_expiry < 0) {
+                        $color = '#dc3545';
+                    } elseif ($ssl_days_until_expiry <= 10) {
+                        $color = '#ffc107';
+                    }
+
+                    $formatted_date = date('M j, Y', strtotime($ssl_expiry_date));
+                    $days_text = $ssl_days_until_expiry < 0 ?
+                        abs($ssl_days_until_expiry) . ' days ago' :
+                        $ssl_days_until_expiry . ' days left';
+
+                    echo '<span style="color: ' . esc_attr($color) . ';" title="' . esc_attr($ssl_expiry_date) . '">';
+                    echo esc_html($formatted_date) . '<br><small>(' . esc_html($days_text) . ')</small>';
+                    echo '</span>';
+                } else {
+                    echo '<span style="color: #777;">N/A</span>';
+                }
                 break;
             case 'last_check':
                 $last_check_timestamp = get_post_meta($post_id, '_mmwm_last_check', true);
@@ -136,7 +244,15 @@ class MMWM_Admin
                     break;
                 }
                 $scheduler = new MMWM_Scheduler();
-                echo '<span class="mmwm-next-check">' . esc_html($scheduler->get_next_check_display($post_id)) . '</span>';
+                $next_check_timestamp = $scheduler->get_next_check_timestamp($post_id);
+
+                if ($next_check_timestamp) {
+                    echo '<span class="mmwm-next-check-countdown" data-timestamp="' . esc_attr($next_check_timestamp) . '" data-postid="' . esc_attr($post_id) . '">';
+                    echo esc_html($scheduler->get_next_check_display($post_id));
+                    echo '</span>';
+                } else {
+                    echo '<span class="mmwm-next-check">Soon</span>';
+                }
                 break;
             case 'monitoring_status':
                 $monitoring_status = get_post_meta($post_id, '_mmwm_monitoring_status', true) ?: 'stopped';
@@ -210,6 +326,30 @@ class MMWM_Admin
         if (!$current_screen || !in_array($current_screen->id, ['edit-mmwm_website', 'mmwm_website_page_mmwm-bulk-add'])) {
             return;
         }
+
+        // Enqueue the enhanced admin script
+        wp_enqueue_script(
+            'mmwm-admin-enhanced',
+            MMWM_PLUGIN_URL . 'includes/assets/admin-enhanced.js',
+            array('jquery'),
+            MMWM_VERSION,
+            true
+        );
+
+        // Enqueue the enhanced admin styles
+        wp_enqueue_style(
+            'mmwm-admin-enhanced',
+            MMWM_PLUGIN_URL . 'includes/assets/admin-enhanced.css',
+            array(),
+            MMWM_VERSION
+        );
+
+        // Localize script with data
+        wp_localize_script('mmwm-admin-enhanced', 'mmwm_admin', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('mmwm_ajax_nonce'),
+            'current_screen' => $current_screen->id
+        ));
 
         $ajax_nonce = wp_create_nonce('mmwm_ajax_nonce');
     ?>

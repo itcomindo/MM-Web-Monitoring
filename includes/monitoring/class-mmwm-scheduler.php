@@ -238,4 +238,16 @@ class MMWM_Scheduler implements MMWM_Scheduler_Interface
             return sprintf(_n('%d hour', '%d hours', $hours, 'mm-web-monitoring'), $hours);
         }
     }
+
+    /**
+     * Get next check timestamp
+     *
+     * @param int $post_id Website post ID
+     * @return int Timestamp of next check
+     */
+    public function get_next_check_timestamp($post_id)
+    {
+        $interval = intval(get_post_meta($post_id, '_mmwm_interval', true)) ?: 15;
+        return $this->calculate_next_check($post_id, $interval);
+    }
 }

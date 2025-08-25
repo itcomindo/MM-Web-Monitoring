@@ -22,6 +22,7 @@ class MMWM_Core
         require_once MMWM_PLUGIN_DIR . 'includes/interfaces/interface-mmwm-checker.php';
         require_once MMWM_PLUGIN_DIR . 'includes/interfaces/interface-mmwm-notifier.php';
         require_once MMWM_PLUGIN_DIR . 'includes/interfaces/interface-mmwm-scheduler.php';
+        require_once MMWM_PLUGIN_DIR . 'includes/interfaces/interface-mmwm-ssl-checker.php';
 
         // Load utilities
         require_once MMWM_PLUGIN_DIR . 'includes/utilities/class-mmwm-validator.php';
@@ -36,6 +37,7 @@ class MMWM_Core
         require_once MMWM_PLUGIN_DIR . 'includes/monitoring/class-mmwm-checker.php';
         require_once MMWM_PLUGIN_DIR . 'includes/monitoring/class-mmwm-notifier.php';
         require_once MMWM_PLUGIN_DIR . 'includes/monitoring/class-mmwm-scheduler.php';
+        require_once MMWM_PLUGIN_DIR . 'includes/monitoring/class-mmwm-ssl-checker.php';
 
         // Load existing classes
         require_once MMWM_PLUGIN_DIR . 'includes/class-mmwm-cpt.php';
@@ -72,6 +74,11 @@ class MMWM_Core
         add_filter('manage_edit-mmwm_website_sortable_columns', array($admin_handler, 'make_columns_sortable'));
         add_action('pre_get_posts', array($admin_handler, 'sort_custom_columns'));
         add_action('admin_footer', array($admin_handler, 'add_list_page_scripts_and_styles'));
+
+        // Bulk actions
+        add_filter('bulk_actions-edit-mmwm_website', array($admin_handler, 'add_bulk_actions'));
+        add_filter('handle_bulk_actions-edit-mmwm_website', array($admin_handler, 'handle_bulk_actions'), 10, 3);
+        add_action('admin_notices', array($admin_handler, 'show_bulk_action_admin_notice'));
 
         // AJAX handlers
         add_action('wp_ajax_mmwm_update_interval', array($admin_handler, 'handle_ajax_update_interval'));
