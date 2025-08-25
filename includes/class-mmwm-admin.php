@@ -25,6 +25,7 @@ class MMWM_Admin
     {
         register_setting('mmwm_global_options', 'mmwm_default_email', array('sanitize_callback' => 'sanitize_email'));
         register_setting('mmwm_global_options', 'mmwm_auto_reload_interval', array('sanitize_callback' => 'intval'));
+        register_setting('mmwm_global_options', 'mmwm_global_cron_hour', array('sanitize_callback' => 'intval'));
 
         add_settings_section(
             'mmwm_main_settings_section',
@@ -53,6 +54,20 @@ class MMWM_Admin
             'mmwm-global-options',
             'mmwm_ui_settings_section'
         );
+
+        add_settings_section(
+            'mmwm_cron_settings_section',
+            __('Global Monitoring Schedule', 'mm-web-monitoring'),
+            null,
+            'mmwm-global-options'
+        );
+        add_settings_field(
+            'mmwm_global_cron_hour',
+            __('Daily Global Check Time', 'mm-web-monitoring'),
+            array($this, 'render_global_cron_hour_field'),
+            'mmwm-global-options',
+            'mmwm_cron_settings_section'
+        );
     }
 
     public function render_auto_reload_interval_field()
@@ -60,6 +75,18 @@ class MMWM_Admin
         $interval = get_option('mmwm_auto_reload_interval', 30);
         echo '<input type="number" name="mmwm_auto_reload_interval" value="' . esc_attr($interval) . '" min="10" max="300" class="small-text" />';
         echo '<p class="description">' . __('How often (in seconds) the All Websites page should auto-reload. Set between 10-300 seconds. Default: 30 seconds.', 'mm-web-monitoring') . '</p>';
+    }
+
+    public function render_global_cron_hour_field()
+    {
+        $hour = get_option('mmwm_global_cron_hour', 2);
+        echo '<select name="mmwm_global_cron_hour">';
+        for ($i = 0; $i <= 23; $i++) {
+            $display_hour = sprintf('%02d:00', $i);
+            echo '<option value="' . esc_attr($i) . '"' . selected($hour, $i, false) . '>' . esc_html($display_hour) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . __('What time each day should the global monitoring check run? This will check SSL certificates, domain expiration, and other scheduled tasks. Default: 02:00 (2 AM).', 'mm-web-monitoring') . '</p>';
     }
 
     public function render_default_email_field()
@@ -125,6 +152,7 @@ class MMWM_Admin
         // Add our custom columns
         $columns['check_result'] = __('Check Result', 'mm-web-monitoring');
         $columns['ssl_info'] = __('SSL Certificate', 'mm-web-monitoring');
+        $columns['domain_expiry'] = __('Domain Expiry', 'mm-web-monitoring');
         $columns['last_check'] = __('Last Check', 'mm-web-monitoring');
         $columns['next_check'] = __('Next Check', 'mm-web-monitoring');
         $columns['monitoring_status'] = __('Status', 'mm-web-monitoring');
@@ -241,6 +269,41 @@ class MMWM_Admin
                     echo '<span style="color: #777;">Not Checked</span>';
                 }
                 break;
+            case 'domain_expiry':
+                $domain_monitoring_enabled = get_post_meta($post_id, '_mmwm_domain_monitoring_enabled', true);
+                
+                if ($domain_monitoring_enabled === '1') {
+                    $domain_expiry_date = get_post_meta($post_id, '_mmwm_domain_expiry_date', true);
+                    $domain_days_until_expiry = get_post_meta($post_id, '_mmwm_domain_days_until_expiry', true);
+                    $domain_error = get_post_meta($post_id, '_mmwm_domain_error', true);
+                    $manual_override = get_post_meta($post_id, '_mmwm_domain_manual_override', true);
+                    
+                    if ($domain_expiry_date) {
+                        $color = '#28a745'; // Green for healthy
+                        if ($domain_days_until_expiry <= 10) {
+                            $color = '#dc3545'; // Red for urgent
+                        } elseif ($domain_days_until_expiry <= 30) {
+                            $color = '#ffc107'; // Yellow for warning
+                        }
+                        
+                        echo '<span style="color: ' . esc_attr($color) . '; font-weight: bold;">';
+                        echo esc_html(date('M j, Y', strtotime($domain_expiry_date)));
+                        echo '</span>';
+                        
+                        if ($manual_override) {
+                            echo '<br><small style="color: #0073aa;">Manual</small>';
+                        }
+                        
+                        echo '<br><small style="color: #666;">' . esc_html($domain_days_until_expiry) . ' days left</small>';
+                    } elseif ($domain_error) {
+                        echo '<span style="color: #dc3545;" title="' . esc_attr($domain_error) . '">Check Failed</span>';
+                    } else {
+                        echo '<span style="color: #777;">Not Checked</span>';
+                    }
+                } else {
+                    echo '<span style="color: #999;">Disabled</span>';
+                }
+                break;
             case 'last_check':
                 $last_check_timestamp = get_post_meta($post_id, '_mmwm_last_check', true);
                 echo $last_check_timestamp ? sprintf('<span title="%s">%s</span>', esc_attr(wp_date('Y-m-d H:i:s', $last_check_timestamp)), esc_html(human_time_diff($last_check_timestamp) . ' ago')) : 'N/A';
@@ -270,8 +333,37 @@ class MMWM_Admin
                 echo '<span style="background-color:' . esc_attr($bg_color) . '; color:white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">' . esc_html(ucfirst($monitoring_status)) . '</span>';
                 break;
             case 'interval':
-                $interval = get_post_meta($post_id, '_mmwm_interval', true) ?: 15;
-                echo '<span class="mmwm-editable-text" data-type="interval" data-postid="' . $post_id . '" title="Click to change">' . esc_html($interval) . ' min</span>';
+                $interval = get_post_meta($post_id, '_mmwm_monitoring_interval', true) ?: '15min';
+                
+                // Convert interval to display format
+                $interval_display = '';
+                switch ($interval) {
+                    case '5min':
+                        $interval_display = '5 min';
+                        break;
+                    case '15min':
+                        $interval_display = '15 min';
+                        break;
+                    case '30min':
+                        $interval_display = '30 min';
+                        break;
+                    case '1hour':
+                        $interval_display = '1 hour';
+                        break;
+                    case '6hour':
+                        $interval_display = '6 hours';
+                        break;
+                    case '12hour':
+                        $interval_display = '12 hours';
+                        break;
+                    case '24hour':
+                        $interval_display = '24 hours';
+                        break;
+                    default:
+                        $interval_display = '15 min';
+                }
+                
+                echo '<span class="mmwm-editable-text" data-type="interval" data-postid="' . $post_id . '" title="Click to change">' . esc_html($interval_display) . '</span>';
                 break;
             case 'host_in':
                 $host_in = get_post_meta($post_id, '_mmwm_host_in', true) ?: 'Belum diisi';

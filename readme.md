@@ -1,90 +1,411 @@
-# MM Web Monitoring
+# 🕸️ MM Web Monitoring
 
-> Plugin WordPress yang simpel namun powerful untuk memantau performa dan uptime website langsung dari dasbor WordPress Anda.
+<div align="center">
 
-![Tangkapan layar plugin MM Web Monitoring](screenshot.png)
+[![WordPress Plugin](https://img.shields.io/badge/WordPress-Plugin-blue.svg)](https://wordpress.org/)
+[![Version](https://img.shields.io/badge/Version-1.0.7-green.svg)]()
+[![License](https://img.shields.io/badge/License-GPL--2.0-orange.svg)](LICENSE)
+[![PHP](https://img.shields.io/badge/PHP-7.4%2B-purple.svg)]()
 
-## Deskripsi
+> **Plugin WordPress yang powerful untuk memantau uptime, SSL, dan domain expiration website langsung dari dasbor WordPress Anda.**
 
-**MM Web Monitoring** adalah solusi terintegrasi untuk agensi, developer, atau siapa saja yang mengelola banyak website dan membutuhkan cara efisien untuk memastikan semua situs tersebut online dan berfungsi dengan baik. Lupakan layanan eksternal yang mahal, semua alat yang Anda butuhkan kini ada di dalam dasbor WordPress yang sudah Anda kenal.
+*Forget expensive third-party monitoring services. Get enterprise-level website monitoring right in your WordPress dashboard!*
 
-Plugin ini memungkinkan Anda menambahkan daftar website untuk dipantau secara berkala. Anda dapat memilih interval pengecekan, tipe verifikasi (hanya kode respons atau mencari elemen HTML tertentu), dan menerima notifikasi email cerdas saat terjadi masalah atau saat masalah telah teratasi. Dengan fitur manajemen massal dan *inline editing*, mengelola puluhan website menjadi sangat cepat dan mudah.
+![MM Web Monitoring Screenshot](screenshot.png)
 
-## Fitur Utama & Manfaat
+</div>
 
-*   **💻 Monitoring Terpusat:** Pantau semua website Anda dari satu dasbor WordPress. Tidak perlu lagi login ke berbagai layanan monitoring.
-*   **⚙️ Pengecekan Fleksibel:**
-    *   **Response Code Only:** Pengecekan cepat untuk memastikan website merespons dengan status OK (HTTP 200).
-    *   **Fetch HTML Content:** Verifikasi lebih dalam dengan memastikan elemen HTML penting (seperti logo atau judul halaman) ada di halaman, mencegah kasus "halaman putih" atau error fatal.
-*   **📧 Notifikasi Email Cerdas:**
-    *   Atur email notifikasi per website atau gunakan email default global.
-    *   Pilih kapan Anda ingin menerima email: **Always** (setiap ada perubahan status, baik down maupun pulih) atau **On Error & Recovery** (hanya saat terjadi error dan saat error tersebut teratasi).
-*   **🚀 Manajemen Massal (Bulk Management):**
-    *   **Bulk Add:** Tambahkan puluhan website sekaligus hanya dengan menempelkan daftar URL.
-    *   **Bulk Actions:** Pilih beberapa website dan jalankan pengecekan, aktifkan (start), atau jeda (pause) monitoring secara bersamaan dengan progress bar yang informatif.
-*   **⚡ Alur Kerja Cepat (Inline Editing):**
-    *   Ubah interval pengecekan, alamat email, provider hosting, dan mode notifikasi langsung dari tabel daftar website tanpa perlu membuka halaman editor satu per satu.
-*   **📊 Informasi Lengkap:**
-    *   Lihat status terakhir, waktu pengecekan terakhir, dan jadwal pengecekan berikutnya (dengan countdown).
-    *   Catat provider hosting untuk setiap website agar mudah dilacak.
+---
 
-## Instalasi
+## 🚀 **Mengapa MM Web Monitoring?**
 
-1.  Unduh file `.zip` dari plugin ini.
-2.  Login ke dasbor WordPress Anda.
-3.  Pergi ke menu **Plugins > Add New**.
-4.  Klik tombol **Upload Plugin** di bagian atas halaman.
-5.  Pilih file `.zip` yang sudah Anda unduh dan klik **Install Now**.
-6.  Setelah instalasi selesai, klik **Activate Plugin**.
+Bayangkan Anda mengelola 50+ website client, tiba-tiba ada 5 website down bersamaan di tengah malam. Dengan MM Web Monitoring, Anda akan tahu dalam hitungan menit dan bisa bertindak cepat. Plugin ini dirancang khusus untuk:
 
-**Metode Alternatif (FTP):**
-1.  Unzip file `.zip`.
-2.  Unggah folder `mm-web-monitoring` ke direktori `/wp-content/plugins/` di server Anda.
-3.  Pergi ke menu **Plugins** di dasbor WordPress dan aktifkan plugin "MM Web Monitoring".
+- 🏢 **Web Agencies** - Monitor semua website client dari satu tempat
+- 💻 **Freelance Developers** - Jaga reputasi dengan uptime monitoring 24/7  
+- 🛒 **E-commerce Owners** - Pastikan toko online selalu accessible
+- 📰 **Content Creators** - Monitor blog dan website portfolio
+- 🏗️ **System Administrators** - Centralized monitoring untuk multiple properties
 
-## Cara Penggunaan
+---
 
-Setelah diaktifkan, menu baru bernama **"Web Monitoring"** akan muncul di sidebar admin Anda.
+## ✨ **Fitur Unggulan v1.0.7**
 
-### 1. Mengatur Opsi Global
+### 🔍 **Website Monitoring**
+- **Smart Monitoring**: Response code check + HTML element verification
+- **Flexible Intervals**: 5 minutes to 24 hours customizable per website
+- **Real-time Status**: Live dashboard dengan auto-reload
+- **Bulk Operations**: Monitor 100+ websites dengan bulk add/actions
 
-Sebelum memulai, disarankan untuk mengatur email default:
-1.  Pergi ke **Web Monitoring > Global Options**.
-2.  Masukkan alamat email yang akan digunakan sebagai penerima notifikasi default jika Anda tidak menentukannya secara spesifik untuk sebuah website.
-3.  Klik **Save Changes**.
+### 📧 **Intelligent Email Notifications**  
+- **Unified HTML Templates**: Professional, responsive email design
+- **Smart Triggers**: Always notify vs. Error & Recovery only
+- **Customizable Recipients**: Per-website or global email settings
+- **Anti-spam Protection**: Rate limiting untuk prevent email flooding
 
-### 2. Menambahkan Website Secara Massal (Bulk Add)
+### 🔒 **SSL Certificate Monitoring**
+- **Auto SSL Check**: Monitor certificate expiration
+- **Early Warnings**: 30/10/7 days before expiry alerts  
+- **Certificate Details**: Issuer, expiry date, days remaining
+- **Bulk SSL Status**: See all SSL status di satu view
 
-Ini adalah cara tercepat untuk memulai:
-1.  Pergi ke **Web Monitoring > Bulk Add**.
-2.  Tempelkan daftar URL website yang ingin Anda pantau di dalam textarea. Pastikan setiap URL berada di baris baru.
-3.  Klik tombol **Add Bulk Monitoring**.
-4.  Plugin akan memproses setiap URL dengan jeda 2 detik, secara otomatis membuat entri monitoring, mengaktifkannya, dan langsung menjalankan pengecekan pertama.
+### 🌐 **Domain Expiration Monitoring** ⭐ *NEW*
+- **Smart Domain Detection**: Auto-extract root domain dari URL complex
+- **Multi-TLD Support**: .com, .co.uk, .web.id, .my.id dan 1000+ TLD lainnya
+- **WHOIS Integration**: Real-time domain expiry checking
+- **Manual Override**: Input manual jika WHOIS gagal
+- **10-Day Alerts**: Early warning sebelum domain expired
 
-### 3. Memantau dan Mengelola Website (Halaman All Websites)
+### ⚡ **Enhanced User Experience**
+- **Consolidated Columns**: SSL Status + Expiry dalam satu kolom
+- **Configurable Auto-reload**: 10-300 seconds customizable interval
+- **Beautiful UI**: Modern, responsive admin interface
+- **Bulk Management**: Select multiple websites untuk bulk operations
+- **Inline Editing**: Quick edit langsung dari table view
 
-Halaman utama plugin ada di **Web Monitoring > All Websites**. Di sini Anda bisa melakukan hampir semua hal:
+### 🕐 **Global Daily Monitoring**
+- **Daily Global Check**: Full SSL & domain check sekali sehari
+- **Customizable Schedule**: Set jam berapa global check berjalan (00:00-23:00)
+- **Smart Notifications**: Anti-duplicate untuk avoid spam
+- **Comprehensive Coverage**: Auto-check semua active monitoring
 
-*   **Melihat Status:** Cek status `UP`, `DOWN`, atau `CONTENT_ERROR` di kolom "Check Result".
-*   **Inline Editing:** Cukup klik pada nilai di kolom **Interval**, **Host In**, **Email Report**, atau **Email To** untuk mengubahnya secara langsung tanpa meninggalkan halaman.
-*   **Aksi Individu:** Gunakan tombol-tombol di kolom "Actions" untuk menjalankan pengecekan manual (`Check Now`), menjeda (`Pause`), mengaktifkan (`Start`), atau menghentikan (`Stop`) monitoring untuk satu website.
-*   **Aksi Massal:** Centang beberapa website menggunakan checkbox, lalu gunakan tombol **Bulk Check Now**, **Bulk Start**, atau **Bulk Pause** yang ada di atas tabel untuk melakukan aksi secara massal.
+---
 
+## 📊 **Perfect For These Use Cases**
 
+| Use Case | Benefit |
+|----------|---------|
+| **Agency Managing 50+ Client Sites** | Monitor all client websites from one dashboard, get instant alerts, professional email reports |
+| **E-commerce Multi-store Owner** | Ensure all stores are online 24/7, SSL certificates valid, domains not expiring |
+| **Freelance Developer** | Proactive monitoring = happy clients, early problem detection before clients notice |
+| **Corporate IT Team** | Centralized monitoring for all company domains, SSL compliance, uptime SLA tracking |
+| **Content Creator Network** | Monitor blog performance, ensure AdSense/affiliate sites always accessible |
+
+---
+
+## 🛠️ **Installation & Quick Start**
+
+### **Method 1: WordPress Admin (Recommended)**
+1. Download plugin `.zip` file
+2. Go to **Plugins > Add New > Upload Plugin**
+3. Choose file dan click **Install Now**
+4. Click **Activate Plugin**
+
+### **Method 2: FTP Upload**
+```bash
+# Extract and upload
+unzip mm-web-monitoring.zip
+# Upload via FTP to: /wp-content/plugins/
+# Activate from WordPress admin
 ```
-```
-mm-web-monitoring
-├─ gui.png
-├─ includes
-│  ├─ class-mmwm-admin.php
-│  ├─ class-mmwm-core.php
-│  ├─ class-mmwm-cpt.php
-│  ├─ class-mmwm-cron.php
-│  ├─ index.php
-│  └─ uninstall.php
-├─ index.php
-├─ mm-web-monitoring.php
-├─ readme.md
-└─ screenshot.png
 
+### **Quick Setup (5 Minutes)**
+1. **Set Global Options**: `Web Monitoring > Global Options`
+   - Default email for notifications
+   - Auto-reload interval (30s recommended)
+   - Daily global check time (2 AM recommended)
+
+2. **Add First Website**: `Web Monitoring > Add New`
+   - Target URL
+   - Check type (Response Code or HTML Content)
+   - Monitoring interval
+   - Email settings
+
+3. **Test & Go Live**: Click "Check Now" → Verify results → Start monitoring
+
+---
+
+## 📋 **Complete Feature List**
+
+<details>
+<summary><strong>🔍 Monitoring Features</strong></summary>
+
+- ✅ HTTP Response Code Monitoring (200, 404, 500, etc.)
+- ✅ HTML Content Verification (find specific elements)
+- ✅ SSL Certificate Status & Expiry Monitoring  
+- ✅ Domain Registration Expiry Monitoring
+- ✅ Custom Monitoring Intervals (5min - 24hour)
+- ✅ Real-time Status Dashboard
+- ✅ Historical Check Results
+- ✅ Downtime Detection & Recovery Notifications
+
+</details>
+
+<details>
+<summary><strong>📧 Email & Notifications</strong></summary>
+
+- ✅ HTML Email Templates (Professional Design)
+- ✅ Customizable Email Recipients (Per-site or Global)
+- ✅ Smart Notification Triggers (Always vs Error-only)
+- ✅ Anti-spam Rate Limiting
+- ✅ Email Delivery Logs
+- ✅ Multiple Notification Types (Uptime, SSL, Domain)
+- ✅ Responsive Email Design (Mobile-friendly)
+
+</details>
+
+<details>
+<summary><strong>⚡ Management & UI</strong></summary>
+
+- ✅ Bulk Add Websites (Paste URL list)
+- ✅ Bulk Actions (Start/Stop/Check multiple sites)
+- ✅ Inline Editing (Quick edit from table view)
+- ✅ Advanced Filtering & Sorting
+- ✅ Auto-refresh Dashboard (Configurable interval)
+- ✅ Mobile-responsive Admin Interface
+- ✅ Progress Indicators for Bulk Operations
+- ✅ Export/Import Capabilities
+
+</details>
+
+<details>
+<summary><strong>🔧 Advanced Features</strong></summary>
+
+- ✅ WordPress Cron Integration
+- ✅ Custom Post Type Architecture
+- ✅ Plugin Hooks & Filters for Developers
+- ✅ Error Handling & Logging
+- ✅ Performance Optimized (Lightweight)
+- ✅ Multi-language Ready (i18n)
+- ✅ WordPress Security Best Practices
+- ✅ Database Optimization
+
+</details>
+
+---
+
+## 📖 **How to Use (Step by Step)**
+
+### **1. Global Configuration**
+Go to `Web Monitoring > Global Options`:
+```php
+✅ Default Email: admin@yoursite.com
+✅ Auto-reload Interval: 30 seconds  
+✅ Daily Global Check: 02:00 (2 AM)
 ```
+
+### **2. Add Your First Website**
+```
+🌐 Target URL: https://example.com
+🔍 Check Type: Response Code Only / Fetch HTML Content  
+⏰ Interval: Every 15 minutes
+📧 Email: custom@email.com (or use global default)
+📬 Trigger: Always / On Error & Recovery
+```
+
+### **3. Enable Advanced Monitoring**
+```
+🔒 SSL Monitoring: ✅ (Auto-enabled)
+🌐 Domain Monitoring: ✅ Enable checkbox
+📅 Manual Domain Expiry: 2025-12-31 (if auto-check fails)
+```
+
+### **4. Bulk Management** 
+```
+📝 Bulk Add: Paste multiple URLs, one per line
+⚡ Bulk Actions: Select multiple → Check Now/Start/Pause/Stop
+🔄 Progress Tracking: Real-time progress bar
+```
+
+### **5. Monitor & Maintain**
+- Dashboard auto-refreshes every 30 seconds (configurable)
+- Receive email alerts for downtime, SSL expiry, domain expiry
+- Daily global check ensures nothing is missed
+- Click "Check Now" for instant verification
+
+---
+
+## 🚨 **Troubleshooting & FAQ**
+
+<details>
+<summary><strong>❓ Website shows "Check Failed" - what to do?</strong></summary>
+
+1. **Check URL Format**: Must include `http://` or `https://`
+2. **Server Connectivity**: Ensure your WordPress can make outbound connections
+3. **Firewall Issues**: Check if target site blocks your server IP
+4. **SSL Issues**: Use HTTP instead of HTTPS for testing
+5. **HTML Selector**: If using HTML check, verify selector exists on page
+
+</details>
+
+<details>
+<summary><strong>❓ Domain monitoring not working?</strong></summary>
+
+1. **Try Manual Override**: Use date picker if auto-check fails
+2. **Check TLD Support**: Standard TLDs (.com, .net) usually work best
+3. **WHOIS Access**: Ensure server can access WHOIS servers
+4. **Complex URLs**: Plugin auto-extracts root domain (admin.site.com → site.com)
+
+</details>
+
+<details>
+<summary><strong>❓ Email notifications not sending?</strong></summary>
+
+1. **Test WordPress Email**: Try other WordPress email functions
+2. **Check Spam Folder**: HTML emails sometimes flagged as spam  
+3. **SMTP Plugin**: Consider using SMTP plugin for better delivery
+4. **Email Logs**: Check plugin email logs in website edit screen
+
+</details>
+
+<details>
+<summary><strong>❓ Performance concerns with many websites?</strong></summary>
+
+1. **Stagger Intervals**: Don't set all websites to same interval
+2. **Use Longer Intervals**: 30min-1hour for stable sites
+3. **Monitor CPU Usage**: Plugin is optimized but monitor server resources
+4. **Database Cleanup**: Plugin auto-manages old data
+
+</details>
+
+---
+
+## 🔧 **Advanced Configuration**
+
+### **For Developers: Hooks & Filters**
+```php
+// Custom notification logic
+add_filter('mmwm_should_send_notification', function($should_send, $post_id, $status) {
+    // Your custom logic here
+    return $should_send;
+}, 10, 3);
+
+// Modify email content
+add_filter('mmwm_email_template_data', function($data, $type) {
+    // Customize email data
+    return $data;
+}, 10, 2);
+
+// Custom check intervals
+add_filter('mmwm_custom_intervals', function($intervals) {
+    $intervals['2min'] = '2 minutes';
+    return $intervals;
+});
+```
+
+### **Server Requirements**
+- **WordPress**: 5.0+ (tested up to 6.4)
+- **PHP**: 7.4+ (8.x recommended)
+- **MySQL**: 5.6+ or MariaDB 10.0+
+- **Outbound Connections**: Required for HTTP checks, SSL verification, WHOIS
+- **Memory**: 64MB+ (128MB recommended for 100+ websites)
+- **Cron**: WordPress cron must be working
+
+---
+
+## 📊 **Changelog**
+
+### **🎉 Version 1.0.7** (2025-08-25)
+**🌟 Major Feature Release - Domain Monitoring & UI Enhancements**
+
+#### **✨ New Features**
+- **🌐 Domain Expiration Monitoring**: Complete domain expiry tracking with smart TLD detection
+- **🛠️ Manual Domain Override**: Date picker for manual domain expiry input when auto-check fails
+- **🕐 Global Daily Monitoring**: Scheduled daily check for SSL & domain expiration at custom time
+- **⚙️ Individual Monitoring Intervals**: Set custom interval per website (5min - 24hour)
+- **🎨 Enhanced UI Design**: Beautiful radio buttons, better spacing, modern styling
+
+#### **🔧 Improvements**  
+- **📧 Unified Email Templates**: Consistent HTML email design across all notification types
+- **📊 Consolidated SSL Column**: Combined SSL status + expiry date in single column for space efficiency
+- **⏱️ Configurable Auto-reload**: Customizable dashboard refresh interval (10-300 seconds)
+- **🔧 HTML Selector Fix**: Preserve HTML tags in textarea (no more tag stripping)
+- **⚡ Performance Optimization**: Better error handling, reduced database queries
+
+#### **🛡️ Error Handling**
+- **🔄 Domain Check Fallback**: Auto-switch to manual input if WHOIS fails
+- **📈 Better Validation**: Input validation for all settings
+- **🚨 Comprehensive Logging**: Detailed error logs for troubleshooting
+- **🛠️ Graceful Degradation**: Plugin works even if some features fail
+
+#### **🐛 Bug Fixes**
+- Fixed HTML selector sanitization issue
+- Improved SSL certificate parsing accuracy  
+- Better timezone handling for scheduling
+- Enhanced mobile responsiveness
+
+---
+
+### **Version 1.0.6** (2024-11-XX)
+#### **🆕 Added**
+- **📧 Email Template System**: HTML email notifications with professional styling
+- **🔒 SSL Certificate Monitoring**: Auto-check SSL expiry with early warnings
+- **⚡ Bulk Operations**: Mass add websites and bulk action improvements
+- **📱 Mobile Optimization**: Responsive admin interface
+
+#### **🔧 Improved**
+- **🚀 Performance**: Optimized database queries and caching
+- **🎨 UI/UX**: Cleaner interface with better visual hierarchy
+- **📊 Reporting**: Enhanced monitoring status display
+
+---
+
+### **Version 1.0.5** (2024-10-XX)  
+#### **🆕 Added**
+- **⏰ Advanced Scheduling**: Flexible monitoring intervals
+- **📈 Dashboard Enhancements**: Real-time status updates
+- **🔧 Error Handling**: Better error reporting and recovery
+
+---
+
+### **Version 1.0.0** (2024-09-XX)
+#### **🎉 Initial Release**
+- **🌐 Basic Website Monitoring**: HTTP response code checking
+- **📧 Email Notifications**: Basic email alerts for downtime
+- **⚙️ WordPress Integration**: Custom post type for website management
+- **📊 Admin Dashboard**: Simple monitoring overview
+
+---
+
+## 🤝 **Contributing & Support**
+
+### **🐛 Found a Bug?**
+1. Check existing issues on GitHub
+2. Create detailed bug report with:
+   - WordPress version
+   - Plugin version  
+   - Steps to reproduce
+   - Expected vs actual behavior
+
+### **💡 Feature Requests**
+1. Search existing feature requests
+2. Explain the use case and benefit
+3. Provide detailed requirements
+
+### **🔧 Want to Contribute Code?**
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Follow WordPress coding standards
+4. Test thoroughly
+5. Submit pull request
+
+### **📧 Need Help?**
+- 📖 **Documentation**: Read this README thoroughly  
+- 🐛 **Bug Reports**: GitHub Issues
+- 💬 **General Questions**: WordPress.org support forum
+- 🚀 **Custom Development**: Contact for custom modifications
+
+---
+
+## 📜 **License & Credits**
+
+**License**: GPL-2.0+ - [View License](LICENSE)
+
+**Credits**:
+- WordPress Community for the amazing platform
+- Contributors who helped improve this plugin
+- Beta testers who provided valuable feedback
+
+**Disclaimer**: This plugin is provided "as is" without warranty. Always test in staging environment before production use.
+
+---
+
+<div align="center">
+
+**⭐ If this plugin helps you, please consider giving it a star on GitHub! ⭐**
+
+*Built with ❤️ for the WordPress community*
+
+[![Star on GitHub](https://img.shields.io/github/stars/yourusername/mm-web-monitoring?style=social)](https://github.com/yourusername/mm-web-monitoring)
+
+</div>

@@ -119,19 +119,38 @@ class MMWM_CPT
             <tr valign="top">
                 <th scope="row"><label><?php _e('Send Email', 'mm-web-monitoring'); ?></label></th>
                 <td>
-                    <fieldset>
-                        <label>
-                            <input type="radio" name="mmwm_notification_trigger" value="always" <?php checked($notification_trigger, 'always'); ?>>
-                            <strong><?php _e('Always', 'mm-web-monitoring'); ?></strong>
-                        </label>
-                        <p class="description" style="margin-left: 20px;"><?php _e('Kirim email setiap kali pengecekan berjalan, apapun hasilnya (UP, DOWN, atau sama seperti sebelumnya).', 'mm-web-monitoring'); ?></p>
-                        <br>
-                        <label>
-                            <input type="radio" name="mmwm_notification_trigger" value="when_error_only" <?php checked($notification_trigger, 'when_error_only'); ?>>
-                            <strong><?php _e('On Error & Recovery', 'mm-web-monitoring'); ?></strong>
-                        </label>
-                        <p class="description" style="margin-left: 20px;"><?php _e('Kirim email jika status berubah dari UP -> DOWN atau jika status tetap DOWN. Juga kirim saat pulih (DOWN -> UP).', 'mm-web-monitoring'); ?></p>
-                    </fieldset>
+                    <div class="mmwm-radio-group">
+                        <div class="mmwm-radio-option">
+                            <input type="radio" name="mmwm_notification_trigger" value="always" id="mmwm_notification_always" <?php checked($notification_trigger, 'always'); ?>>
+                            <div class="mmwm-radio-content">
+                                <strong><?php _e('Always', 'mm-web-monitoring'); ?></strong>
+                                <small><?php _e('Kirim email setiap kali pengecekan berjalan, apapun hasilnya (UP, DOWN, atau sama seperti sebelumnya).', 'mm-web-monitoring'); ?></small>
+                            </div>
+                        </div>
+                        <div class="mmwm-radio-option">
+                            <input type="radio" name="mmwm_notification_trigger" value="when_error_only" id="mmwm_notification_error_only" <?php checked($notification_trigger, 'when_error_only'); ?>>
+                            <div class="mmwm-radio-content">
+                                <strong><?php _e('On Error & Recovery', 'mm-web-monitoring'); ?></strong>
+                                <small><?php _e('Kirim email jika status berubah dari UP -> DOWN atau jika status tetap DOWN. Juga kirim saat pulih (DOWN -> UP).', 'mm-web-monitoring'); ?></small>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            <tr valign="top">
+                <th scope="row"><label><?php _e('Monitoring Interval', 'mm-web-monitoring'); ?></label></th>
+                <td>
+                    <?php $monitoring_interval = get_post_meta($post->ID, '_mmwm_monitoring_interval', true) ?: '15min'; ?>
+                    <select name="mmwm_monitoring_interval" style="width: 200px;">
+                        <option value="5min" <?php selected($monitoring_interval, '5min'); ?>><?php _e('Every 5 minutes', 'mm-web-monitoring'); ?></option>
+                        <option value="15min" <?php selected($monitoring_interval, '15min'); ?>><?php _e('Every 15 minutes', 'mm-web-monitoring'); ?></option>
+                        <option value="30min" <?php selected($monitoring_interval, '30min'); ?>><?php _e('Every 30 minutes', 'mm-web-monitoring'); ?></option>
+                        <option value="1hour" <?php selected($monitoring_interval, '1hour'); ?>><?php _e('Every hour', 'mm-web-monitoring'); ?></option>
+                        <option value="6hour" <?php selected($monitoring_interval, '6hour'); ?>><?php _e('Every 6 hours', 'mm-web-monitoring'); ?></option>
+                        <option value="12hour" <?php selected($monitoring_interval, '12hour'); ?>><?php _e('Every 12 hours', 'mm-web-monitoring'); ?></option>
+                        <option value="24hour" <?php selected($monitoring_interval, '24hour'); ?>><?php _e('Once daily', 'mm-web-monitoring'); ?></option>
+                    </select>
+                    <p class="description"><?php _e('Frequency of monitoring checks for this website.', 'mm-web-monitoring'); ?></p>
                 </td>
             </tr>
             <tr valign="top" id="mmwm-email-log-row">
@@ -143,7 +162,11 @@ class MMWM_CPT
             <tr valign="top">
                 <th scope="row"><label><?php _e('Domain Monitoring', 'mm-web-monitoring'); ?></label></th>
                 <td>
-                    <?php $domain_monitoring_enabled = get_post_meta($post->ID, '_mmwm_domain_monitoring_enabled', true); ?>
+                    <?php 
+                    $domain_monitoring_enabled = get_post_meta($post->ID, '_mmwm_domain_monitoring_enabled', true); 
+                    $domain_error = get_post_meta($post->ID, '_mmwm_domain_error', true);
+                    $manual_override = get_post_meta($post->ID, '_mmwm_domain_manual_override', true);
+                    ?>
                     <label>
                         <input type="checkbox" name="mmwm_domain_monitoring_enabled" value="1" <?php checked($domain_monitoring_enabled, '1'); ?> />
                         <?php _e('Enable domain expiration monitoring', 'mm-web-monitoring'); ?>
@@ -156,18 +179,57 @@ class MMWM_CPT
                         $domain_days_until_expiry = get_post_meta($post->ID, '_mmwm_domain_days_until_expiry', true);
                         $domain_last_check = get_post_meta($post->ID, '_mmwm_domain_last_check', true);
                         ?>
-                        <div style="margin-top: 10px; padding: 10px; background: #f9f9f9; border-left: 4px solid #0073aa;">
-                            <strong><?php _e('Domain Information:', 'mm-web-monitoring'); ?></strong><br>
-                            <?php if ($domain_expiry_date): ?>
-                                <strong><?php _e('Expires:', 'mm-web-monitoring'); ?></strong> <?php echo esc_html($domain_expiry_date); ?><br>
-                                <strong><?php _e('Days until expiry:', 'mm-web-monitoring'); ?></strong> <?php echo esc_html($domain_days_until_expiry); ?><br>
-                            <?php endif; ?>
-                            <?php if ($domain_last_check): ?>
-                                <strong><?php _e('Last checked:', 'mm-web-monitoring'); ?></strong> <?php echo esc_html(wp_date('Y-m-d H:i:s', $domain_last_check)); ?>
-                            <?php else: ?>
-                                <em><?php _e('Domain not checked yet. Save to check domain expiration.', 'mm-web-monitoring'); ?></em>
-                            <?php endif; ?>
-                        </div>
+                        
+                        <?php if ($domain_error && !$manual_override): ?>
+                            <div style="margin-top: 10px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                                <strong style="color: #856404;"><?php _e('⚠️ Domain Check Failed', 'mm-web-monitoring'); ?></strong><br>
+                                <p style="margin: 5px 0; color: #856404;"><?php echo esc_html($domain_error); ?></p>
+                                <p style="margin: 5px 0; color: #856404;"><?php _e('Please enter the domain expiry date manually below:', 'mm-web-monitoring'); ?></p>
+                                
+                                <div style="margin-top: 10px;">
+                                    <label for="mmwm_manual_domain_expiry"><strong><?php _e('Manual Domain Expiry Date:', 'mm-web-monitoring'); ?></strong></label><br>
+                                    <input type="date" 
+                                           name="mmwm_manual_domain_expiry" 
+                                           id="mmwm_manual_domain_expiry" 
+                                           value="<?php echo esc_attr($domain_expiry_date); ?>"
+                                           min="<?php echo date('Y-m-d'); ?>"
+                                           style="width: 200px; padding: 5px; margin-top: 5px;">
+                                    <p class="description"><?php _e('Enter when this domain registration will expire.', 'mm-web-monitoring'); ?></p>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <div style="margin-top: 10px; padding: 10px; background: #f9f9f9; border-left: 4px solid #0073aa;">
+                                <strong><?php _e('Domain Information:', 'mm-web-monitoring'); ?></strong><br>
+                                <?php if ($domain_expiry_date): ?>
+                                    <strong><?php _e('Expires:', 'mm-web-monitoring'); ?></strong> <?php echo esc_html($domain_expiry_date); ?>
+                                    <?php if ($manual_override): ?>
+                                        <span style="color: #0073aa; font-weight: bold;"> (Manual)</span>
+                                    <?php endif; ?><br>
+                                    <strong><?php _e('Days until expiry:', 'mm-web-monitoring'); ?></strong> 
+                                    <span style="color: <?php echo $domain_days_until_expiry <= 30 ? '#dc3545' : ($domain_days_until_expiry <= 60 ? '#ffc107' : '#28a745'); ?>; font-weight: bold;">
+                                        <?php echo esc_html($domain_days_until_expiry); ?>
+                                    </span><br>
+                                <?php endif; ?>
+                                <?php if ($domain_last_check && !$manual_override): ?>
+                                    <strong><?php _e('Last checked:', 'mm-web-monitoring'); ?></strong> <?php echo esc_html(wp_date('Y-m-d H:i:s', $domain_last_check)); ?>
+                                <?php elseif (!$manual_override): ?>
+                                    <em><?php _e('Domain not checked yet. Save to check domain expiration.', 'mm-web-monitoring'); ?></em>
+                                <?php endif; ?>
+                                
+                                <?php if ($manual_override): ?>
+                                    <div style="margin-top: 10px;">
+                                        <label for="mmwm_manual_domain_expiry_update"><strong><?php _e('Update Manual Expiry Date:', 'mm-web-monitoring'); ?></strong></label><br>
+                                        <input type="date" 
+                                               name="mmwm_manual_domain_expiry" 
+                                               id="mmwm_manual_domain_expiry_update" 
+                                               value="<?php echo esc_attr($domain_expiry_date); ?>"
+                                               min="<?php echo date('Y-m-d'); ?>"
+                                               style="width: 200px; padding: 5px; margin-top: 5px;">
+                                        <p class="description"><?php _e('Update the manual domain expiry date if needed.', 'mm-web-monitoring'); ?></p>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </td>
             </tr>
@@ -192,6 +254,66 @@ class MMWM_CPT
             return;
         }
     ?>
+        <style>
+            /* Enhanced radio button styling */
+            .mmwm-radio-group {
+                border: 1px solid #ddd;
+                padding: 15px;
+                border-radius: 5px;
+                background: #f9f9f9;
+            }
+            
+            .mmwm-radio-option {
+                display: flex;
+                align-items: flex-start;
+                padding: 12px;
+                background: white;
+                border-radius: 6px;
+                margin-bottom: 10px;
+                border: 2px solid transparent;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            }
+            
+            .mmwm-radio-option:hover {
+                border-color: #0073aa;
+                box-shadow: 0 2px 8px rgba(0,115,170,0.1);
+            }
+            
+            .mmwm-radio-option input[type="radio"] {
+                margin-right: 12px;
+                margin-top: 2px;
+                transform: scale(1.2);
+            }
+            
+            .mmwm-radio-option input[type="radio"]:checked + .mmwm-radio-content {
+                color: #0073aa;
+            }
+            
+            .mmwm-radio-option:has(input[type="radio"]:checked) {
+                border-color: #0073aa;
+                background: #f0f8ff;
+            }
+            
+            .mmwm-radio-content strong {
+                display: block;
+                font-size: 14px;
+                margin-bottom: 4px;
+                color: #0073aa;
+            }
+            
+            .mmwm-radio-content small {
+                font-size: 12px;
+                color: #666;
+                line-height: 1.4;
+            }
+            
+            .mmwm-radio-option:last-child {
+                margin-bottom: 0;
+            }
+        </style>
+        
         <script type="text/javascript">
             document.addEventListener('DOMContentLoaded', function() {
                 var publishButton = document.getElementById('publish');
@@ -293,7 +415,14 @@ class MMWM_CPT
         if (isset($_POST['mmwm_target_url'])) update_post_meta($post_id, '_mmwm_target_url', esc_url_raw($_POST['mmwm_target_url']));
         if (isset($_POST['mmwm_host_in'])) update_post_meta($post_id, '_mmwm_host_in', sanitize_text_field($_POST['mmwm_host_in']));
         if (isset($_POST['mmwm_check_type'])) update_post_meta($post_id, '_mmwm_check_type', sanitize_text_field($_POST['mmwm_check_type']));
-        if (isset($_POST['mmwm_html_selector'])) update_post_meta($post_id, '_mmwm_html_selector', sanitize_textarea_field($_POST['mmwm_html_selector']));
+        
+        // Handle HTML selector without sanitizing HTML tags
+        if (isset($_POST['mmwm_html_selector'])) {
+            $html_selector = wp_unslash($_POST['mmwm_html_selector']);
+            // Only strip slashes but preserve HTML tags
+            update_post_meta($post_id, '_mmwm_html_selector', $html_selector);
+        }
+        
         if (isset($_POST['mmwm_notification_email'])) update_post_meta($post_id, '_mmwm_notification_email', sanitize_email($_POST['mmwm_notification_email']));
 
         if (isset($_POST['mmwm_notification_trigger'])) {
@@ -308,12 +437,38 @@ class MMWM_CPT
         $old_domain_monitoring = get_post_meta($post_id, '_mmwm_domain_monitoring_enabled', true);
         update_post_meta($post_id, '_mmwm_domain_monitoring_enabled', $domain_monitoring_enabled);
 
-        // If domain monitoring was just enabled or URL changed, check domain expiration
+        // Handle manual domain expiry date if provided
+        if (isset($_POST['mmwm_manual_domain_expiry']) && !empty($_POST['mmwm_manual_domain_expiry'])) {
+            $manual_date = sanitize_text_field($_POST['mmwm_manual_domain_expiry']);
+            if (strtotime($manual_date)) {
+                update_post_meta($post_id, '_mmwm_domain_expiry_date', $manual_date);
+                update_post_meta($post_id, '_mmwm_domain_manual_override', '1');
+                
+                // Calculate days until expiry
+                $days_diff = floor((strtotime($manual_date) - time()) / (60 * 60 * 24));
+                update_post_meta($post_id, '_mmwm_domain_days_until_expiry', $days_diff);
+                update_post_meta($post_id, '_mmwm_domain_error', '');
+            }
+        }
+
+        // Handle monitoring interval
+        if (isset($_POST['mmwm_monitoring_interval'])) {
+            $interval = sanitize_text_field($_POST['mmwm_monitoring_interval']);
+            $allowed_intervals = ['5min', '15min', '30min', '1hour', '6hour', '12hour', '24hour'];
+            if (in_array($interval, $allowed_intervals)) {
+                update_post_meta($post_id, '_mmwm_monitoring_interval', $interval);
+            }
+        }
+
+        // If domain monitoring was just enabled or URL changed, check domain expiration (with error handling)
         if ($domain_monitoring_enabled === '1' && (
             $old_domain_monitoring !== '1' ||
             (isset($_POST['mmwm_target_url']) && get_post_meta($post_id, '_mmwm_target_url', true) !== esc_url_raw($_POST['mmwm_target_url']))
         )) {
-            $this->check_domain_expiration($post_id);
+            // Only check if manual override is not set
+            if (!get_post_meta($post_id, '_mmwm_domain_manual_override', true)) {
+                $this->check_domain_expiration($post_id);
+            }
         }
 
         if ($post->post_status === 'publish' && get_post_meta($post_id, '_mmwm_monitoring_status', true) !== 'active') {
