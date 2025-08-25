@@ -41,7 +41,14 @@ class MMWM_Cron
     {
         // Use the new checker for better performance and modularity
         $checker = new MMWM_Checker();
-        return $checker->perform_check($post_id);
+        $result = $checker->perform_check($post_id);
+
+        // Update status in database (maintain compatibility with existing system)
+        if (is_array($result)) {
+            $this->update_status($post_id, $result['status'], $result['reason']);
+        }
+
+        return $result;
     }
 
     private function update_status($post_id, $new_status, $reason = '')
@@ -51,6 +58,12 @@ class MMWM_Cron
         update_post_meta($post_id, '_mmwm_last_check', time());
         update_post_meta($post_id, '_mmwm_status', $new_status);
         update_post_meta($post_id, '_mmwm_status_reason', $reason);
+
+        // Skip email notification if WordPress functions not available
+        if (!function_exists('get_option')) {
+            update_post_meta($post_id, '_mmwm_email_log', 'Email skipped (WordPress functions not available)');
+            return;
+        }
 
         $notification_trigger = get_post_meta($post_id, '_mmwm_notification_trigger', true) ?: 'always';
         $should_send = false;
@@ -73,7 +86,7 @@ class MMWM_Cron
             if ($email_sent) {
                 $email_log = 'Email report sent successfully.';
             } else {
-                $email_log = 'Error: Failed to send email. Check WP Mail SMTP logs.';
+                $email_log = 'Failed to send email report.';
             }
         }
 
@@ -106,24 +119,7 @@ class MMWM_Cron
 
     private function find_element_in_html($html, $selector)
     {
-        if (empty($html) || empty($selector)) return false;
-        libxml_use_internal_errors(true);
-        $dom = new DOMDocument();
-        @$dom->loadHTML($html);
-        libxml_clear_errors();
-        $xpath = new DOMXPath($dom);
-        $query = '';
-        $first_char = substr($selector, 0, 1);
-        $element_name = substr($selector, 1);
-        if ($first_char === '#') {
-            $query = "//*[@id='" . $element_name . "']";
-        } elseif ($first_char === '.') {
-            $query = "//*[contains(concat(' ', normalize-space(@class), ' '), ' " . $element_name . " ')]";
-        } else {
-            return strpos($html, $selector) !== false;
-        }
-        $results = $xpath->query($query);
-        return $results->length > 0;
+        return MMWM_HTML_Parser::find_element($html, $selector);
     }
 
     public function handle_ajax_run_check_now()

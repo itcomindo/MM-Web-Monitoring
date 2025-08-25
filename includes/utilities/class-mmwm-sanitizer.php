@@ -18,7 +18,7 @@ class MMWM_Sanitizer
      */
     public static function sanitize_url($url)
     {
-        return esc_url_raw(trim($url));
+        return MMWM_WP_Compat::esc_url_raw(trim($url));
     }
 
     /**
@@ -29,7 +29,7 @@ class MMWM_Sanitizer
      */
     public static function sanitize_email($email)
     {
-        return sanitize_email(trim($email));
+        return MMWM_WP_Compat::sanitize_email(trim($email));
     }
 
     /**
@@ -40,7 +40,7 @@ class MMWM_Sanitizer
      */
     public static function sanitize_text($text)
     {
-        return sanitize_text_field(trim($text));
+        return MMWM_WP_Compat::sanitize_text_field(trim($text));
     }
 
     /**
@@ -51,7 +51,7 @@ class MMWM_Sanitizer
      */
     public static function sanitize_textarea($content)
     {
-        return sanitize_textarea_field(trim($content));
+        return MMWM_WP_Compat::sanitize_textarea_field(trim($content));
     }
 
     /**

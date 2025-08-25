@@ -38,22 +38,21 @@ class MMWM_Checker implements MMWM_Checker_Interface
                 'Accept-Encoding' => 'gzip, deflate',
                 'Cache-Control'   => 'no-cache',
                 'Pragma'          => 'no-cache',
-                'Referer'         => home_url(),
+                'Referer'         => MMWM_WP_Compat::home_url(),
             ],
         ];
 
-        $response = wp_remote_get($config['url'], $args);
+        $response = MMWM_WP_Compat::wp_remote_get($config['url'], $args);
 
-        if (is_wp_error($response)) {
+        if (MMWM_WP_Compat::is_wp_error($response)) {
             return [
                 'status' => 'DOWN',
-                'reason' => 'Request Error: ' . $response->get_error_message(),
+                'reason' => 'Request Error: ' . MMWM_WP_Compat::get_error_message($response),
                 'timestamp' => time()
             ];
         }
 
-        $response_code = wp_remote_retrieve_response_code($response);
-
+        $response_code = MMWM_WP_Compat::wp_remote_retrieve_response_code($response);
         if ($response_code >= 400) {
             return [
                 'status' => 'DOWN',
@@ -64,7 +63,7 @@ class MMWM_Checker implements MMWM_Checker_Interface
 
         // Check for HTML element if required
         if ($config['check_type'] === 'fetch_html' && !empty($config['html_selector'])) {
-            $body = wp_remote_retrieve_body($response);
+            $body = MMWM_WP_Compat::wp_remote_retrieve_body($response);
 
             if (!MMWM_HTML_Parser::find_element($body, $config['html_selector'])) {
                 return [
@@ -74,7 +73,6 @@ class MMWM_Checker implements MMWM_Checker_Interface
                 ];
             }
         }
-
         return [
             'status' => 'UP',
             'reason' => "HTTP {$response_code} OK" . ($config['check_type'] === 'fetch_html' ? ' (HTML element found)' : ''),

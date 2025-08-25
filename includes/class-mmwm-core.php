@@ -15,6 +15,9 @@ class MMWM_Core
 
     private function load_dependencies()
     {
+        // Load WordPress compatibility layer first
+        require_once MMWM_PLUGIN_DIR . 'includes/utilities/class-mmwm-wp-compat.php';
+
         // Load interfaces
         require_once MMWM_PLUGIN_DIR . 'includes/interfaces/interface-mmwm-checker.php';
         require_once MMWM_PLUGIN_DIR . 'includes/interfaces/interface-mmwm-notifier.php';

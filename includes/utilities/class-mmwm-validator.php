@@ -22,7 +22,7 @@ class MMWM_Validator
             return false;
         }
 
-        $url = esc_url_raw(trim($url));
+        $url = MMWM_WP_Compat::esc_url_raw(trim($url));
         return filter_var($url, FILTER_VALIDATE_URL) !== false;
     }
 
@@ -38,7 +38,12 @@ class MMWM_Validator
             return false;
         }
 
-        return is_email($email) !== false;
+        // Use WordPress function if available, otherwise use PHP filter
+        if (function_exists('is_email')) {
+            return is_email($email) !== false;
+        }
+
+        return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
     }
 
     /**
