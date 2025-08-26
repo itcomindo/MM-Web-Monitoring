@@ -1070,14 +1070,35 @@ class MMWM_Admin
                 // Convert interval to display format
                 $interval_display = '';
                 switch ($interval) {
+                    case '1min':
+                        $interval_display = '1 min';
+                        break;
+                    case '3min':
+                        $interval_display = '3 min';
+                        break;
                     case '5min':
                         $interval_display = '5 min';
+                        break;
+                    case '7min':
+                        $interval_display = '7 min';
+                        break;
+                    case '10min':
+                        $interval_display = '10 min';
                         break;
                     case '15min':
                         $interval_display = '15 min';
                         break;
+                    case '25min':
+                        $interval_display = '25 min';
+                        break;
                     case '30min':
                         $interval_display = '30 min';
+                        break;
+                    case '45min':
+                        $interval_display = '45 min';
+                        break;
+                    case '60min':
+                        $interval_display = '60 min';
                         break;
                     case '1hour':
                         $interval_display = '1 hour';
@@ -1291,9 +1312,16 @@ class MMWM_Admin
 
                         if (type === 'interval') {
                             var intervals = {
+                                '1min': '1 min',
+                                '3min': '3 min',
                                 '5min': '5 min',
+                                '7min': '7 min',
+                                '10min': '10 min',
                                 '15min': '15 min',
+                                '25min': '25 min',
                                 '30min': '30 min',
+                                '45min': '45 min',
+                                '60min': '60 min',
                                 '1hour': '1 hour',
                                 '6hour': '6 hours',
                                 '12hour': '12 hours',
@@ -1321,9 +1349,16 @@ class MMWM_Admin
                             var displayVal = newVal;
                             if (type === 'interval') {
                                 var intervalMap = {
+                                    '1min': '1 min',
+                                    '3min': '3 min',
                                     '5min': '5 min',
+                                    '7min': '7 min',
+                                    '10min': '10 min',
                                     '15min': '15 min',
+                                    '25min': '25 min',
                                     '30min': '30 min',
+                                    '45min': '45 min',
+                                    '60min': '60 min',
                                     '1hour': '1 hour',
                                     '6hour': '6 hours',
                                     '12hour': '12 hours',
