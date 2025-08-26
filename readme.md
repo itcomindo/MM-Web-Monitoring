@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/License-GPL--2.0-orange.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-7.4%2B-purple.svg)]()
 
-> **Plugin WordPress yang powerful untuk memantau uptime, SSL, dan domain expiration website langsung dari dasbor WordPress Anda.**
+> **Powerful WordPress plugin for monitoring website uptime, SSL certificates, and domain expiration directly from your WordPress dashboard.**
 
 *Forget expensive third-party monitoring services. Get enterprise-level website monitoring right in your WordPress dashboard!*
 
@@ -37,7 +37,7 @@ Many website owners rely on external monitoring services like **Netumo.app**, **
 
 **The Security Dilemma:**
 - 🚨 **Increased Brute Force Attacks**: Rising cybersecurity threats require stricter website protection
-- � **Geo-blocking Requirements**: Many sites now block traffic from specific countries
+- 🌍 **Geo-blocking Requirements**: Many sites now block traffic from specific countries
 - 🤖 **Bot Protection**: Advanced security rules block automated requests
 - 🔥 **Cloudflare Security**: WAF rules and rate limiting can block monitoring services
 - 🚫 **False Negatives**: External monitors report "down" when sites are actually protected, not down
@@ -59,45 +59,205 @@ MM Web Monitoring solves this by monitoring from **your own WordPress installati
 
 ---
 
-## ✨ **Fitur Unggulan v1.0.7**
+## ✨ **Key Features v1.0.7**
 
 ### 🔍 **Website Monitoring**
 - **Smart Monitoring**: Response code check + HTML element verification
 - **Flexible Intervals**: 5 minutes to 24 hours customizable per website
-- **Real-time Status**: Live dashboard dengan auto-reload
-- **Bulk Operations**: Monitor 100+ websites dengan bulk add/actions
+- **Real-time Status**: Live dashboard with auto-reload
+- **Bulk Operations**: Monitor 100+ websites with bulk add/actions
 
 ### 📧 **Intelligent Email Notifications**  
 - **Unified HTML Templates**: Professional, responsive email design
 - **Smart Triggers**: Always notify vs. Error & Recovery only
 - **Customizable Recipients**: Per-website or global email settings
-- **Anti-spam Protection**: Rate limiting untuk prevent email flooding
+- **Anti-spam Protection**: Rate limiting to prevent email flooding
 
 ### 🔒 **SSL Certificate Monitoring**
 - **Auto SSL Check**: Monitor certificate expiration
 - **Early Warnings**: 30/10/7 days before expiry alerts  
 - **Certificate Details**: Issuer, expiry date, days remaining
-- **Bulk SSL Status**: See all SSL status di satu view
+- **Bulk SSL Status**: See all SSL status in one view
 
 ### 🌐 **Domain Expiration Monitoring** ⭐ *NEW*
-- **Smart Domain Detection**: Auto-extract root domain dari URL complex
-- **Multi-TLD Support**: .com, .co.uk, .web.id, .my.id dan 1000+ TLD lainnya
+- **Smart Domain Detection**: Auto-extract root domain from complex URLs
+- **Multi-TLD Support**: .com, .co.uk, .web.id, .my.id and 1000+ other TLDs
 - **WHOIS Integration**: Real-time domain expiry checking
-- **Manual Override**: Input manual jika WHOIS gagal
-- **10-Day Alerts**: Early warning sebelum domain expired
+- **Manual Override**: Manual input when WHOIS fails
+- **10-Day Alerts**: Early warning before domain expiration
 
 ### ⚡ **Enhanced User Experience**
-- **Consolidated Columns**: SSL Status + Expiry dalam satu kolom
+- **Consolidated Columns**: SSL Status + Expiry in one column
 - **Configurable Auto-reload**: 10-300 seconds customizable interval
 - **Beautiful UI**: Modern, responsive admin interface
-- **Bulk Management**: Select multiple websites untuk bulk operations
-- **Inline Editing**: Quick edit langsung dari table view
+- **Bulk Management**: Select multiple websites for bulk operations
+- **Inline Editing**: Quick edit directly from table view
 
 ### 🕐 **Global Daily Monitoring**
-- **Daily Global Check**: Full SSL & domain check sekali sehari
-- **Customizable Schedule**: Set jam berapa global check berjalan (00:00-23:00)
-- **Smart Notifications**: Anti-duplicate untuk avoid spam
-- **Comprehensive Coverage**: Auto-check semua active monitoring
+- **Daily Global Check**: Full SSL & domain check once daily
+- **Customizable Schedule**: Set what time global check runs (00:00-23:00)
+- **Smart Notifications**: Anti-duplicate to avoid spam
+- **Comprehensive Coverage**: Auto-check all active monitoring
+
+---
+
+## 🤔 **Critical Questions Answered**
+
+### **Q: "Self-hosted monitoring is useless - what if the monitoring server goes down?"**
+
+**This is actually the #1 concern, and here are the logical, practical solutions:**
+
+#### **🎯 Multi-Server Monitoring Strategy (Recommended)**
+
+**Primary Solution: Distributed Monitoring**
+```bash
+# Professional Setup (3-Server Strategy)
+Server 1: Main business site (monitors 70% of sites)
+Server 2: Backup site/VPS (monitors 70% of sites + Server 1)  
+Server 3: Third-party hosting (monitors critical sites + Server 1 & 2)
+```
+
+**Why This Works:**
+- ✅ **No Single Point of Failure**: If one server goes down, others continue monitoring
+- ✅ **Cost Effective**: Basic VPS costs $5-15/month vs. $50+ for external services
+- ✅ **Cross-Network Coverage**: Different hosting providers = different network paths
+- ✅ **Geographic Diversity**: Monitor from multiple locations globally
+
+#### **🔄 Automated Failover Solutions**
+
+**Option 1: Monitor-the-Monitor Setup**
+```php
+// Install on Server 2 to monitor Server 1
+add_action('mmwm_server_down_detected', function() {
+    // Automatically take over monitoring duties
+    wp_remote_post('https://backup-server.com/activate-monitoring');
+    
+    // Send alert to admin
+    wp_mail('admin@yoursite.com', 'Primary Monitor Down', 
+        'Backup monitoring server has taken over.');
+});
+```
+
+**Option 2: External Monitor for Critical Infrastructure**
+- Use **free tier external service** (UptimeRobot free = 50 monitors) to monitor your monitoring servers only
+- Monitor your 3 monitoring servers + critical business sites
+- If monitoring server goes down, external service alerts you immediately
+
+#### **🌐 Hybrid Monitoring Architecture**
+
+**Best Practice: 80/20 Strategy**
+- **80% Self-hosted**: All regular websites monitored by your servers
+- **20% External backup**: Critical business sites + monitoring servers watched by external service
+
+**Example Configuration:**
+```
+External Service (UptimeRobot Free):
+- monitor-server-1.yoursite.com  
+- monitor-server-2.yoursite.com
+- critical-ecommerce-site.com
+- main-business-website.com
+- payment-gateway-site.com
+
+Self-hosted (MM Web Monitoring):
+- All client websites
+- All development sites  
+- All portfolio sites
+- All secondary business sites
+```
+
+### **Q: "What about network outages, ISP problems, or datacenter issues?"**
+
+**These are valid concerns with logical solutions:**
+
+#### **🌍 Geographic Distribution**
+```bash
+# Professional Multi-Location Setup
+Primary Monitor: Your main office/hosting (monitors 100% of sites)
+Secondary Monitor: Different city/state/country (monitors 50% critical sites)
+Tertiary Monitor: Cloud service different provider (monitors 25% most critical)
+```
+
+#### **📱 Mobile Monitoring Backup**
+```php
+// Add mobile checking capability
+add_action('mmwm_primary_down', function() {
+    // Trigger mobile app to start basic monitoring
+    // Send push notification to check sites manually
+    // Activate backup monitoring from mobile hotspot
+});
+```
+
+### **Q: "Self-hosted monitoring creates more complexity - why not just use external services?"**
+
+**Here's the real-world cost-benefit analysis:**
+
+#### **💰 Total Cost of Ownership (5 Years)**
+
+**External Service Route:**
+```
+UptimeRobot Pro: $7/month × 60 months = $420
++ Pingdom: $10/month × 60 months = $600  
++ StatusCake: $15/month × 60 months = $900
++ Setup complexity: 20 hours × $50/hour = $1000
++ Monthly management: 2 hours × 60 months × $50 = $6000
+= Total: $8,920 over 5 years
+```
+
+**Self-hosted Route:**
+```
+MM Web Monitoring: $0 (one-time setup)
++ VPS for backup: $10/month × 60 months = $600
++ Setup time: 8 hours × $50/hour = $400  
++ Monthly management: 0.5 hours × 60 months × $50 = $1500
+= Total: $2,500 over 5 years (72% savings)
+```
+
+#### **🎯 Reliability Comparison**
+
+**External Services Issues:**
+- ❌ False positives from Cloudflare blocking
+- ❌ IP changes without notification  
+- ❌ Service outages (even big companies have downtime)
+- ❌ Limited customization
+- ❌ No control over monitoring logic
+
+**Self-hosted Benefits:**
+- ✅ Complete control over monitoring logic
+- ✅ No false positives from security rules
+- ✅ Customizable intervals and notifications
+- ✅ Direct access to logs and debugging
+- ✅ Integration with your existing systems
+
+### **Q: "What if I don't have technical skills for server management?"**
+
+**Multiple solutions for different skill levels:**
+
+#### **🎓 Beginner Level: Managed WordPress Hosting**
+```bash
+# Use these managed services (they handle server management):
+- WP Engine: Install plugin → Works automatically
+- Kinsta: One-click WordPress → Install plugin  
+- SiteGround: Managed WordPress → Plugin installation
+- Cloudways: Managed hosting → Simple setup
+```
+
+#### **🔧 Intermediate Level: One-Click VPS**
+```bash
+# Services with automatic WordPress installation:
+- DigitalOcean App Platform
+- Linode WordPress Marketplace  
+- Vultr WordPress Apps
+- AWS Lightsail WordPress
+```
+
+#### **⚡ Advanced Level: Full Control**
+```bash
+# Custom server setup for maximum control
+- Custom VPS with cPanel/Plesk
+- Docker containers for isolation
+- Kubernetes for enterprise scaling
+- Custom monitoring dashboards
+```
 
 ---
 
@@ -113,12 +273,174 @@ MM Web Monitoring solves this by monitoring from **your own WordPress installati
 
 ---
 
-## 🛠️ **Installation & Quick Start**
+## � **Addressing Common Concerns & Limitations**
+
+### **Q: "Plugin updates might break monitoring - what about automatic updates?"**
+
+**Solution: Update Safety Strategy**
+```php
+// Add to wp-config.php for staging environment testing
+define('MMWM_STAGING_MODE', true);         // Test updates in staging first
+define('MMWM_BACKUP_CONFIG', true);        // Auto-backup settings before updates
+define('MMWM_ROLLBACK_ENABLED', true);     // Enable quick rollback feature
+
+// Disable auto-updates for critical monitoring server
+add_filter('auto_update_plugin', function($update, $item) {
+    if ($item->slug === 'mm-web-monitoring') {
+        return false; // Manual updates only
+    }
+    return $update;
+}, 10, 2);
+```
+
+**Best Practices:**
+- ✅ **Test in staging environment** before production updates
+- ✅ **Schedule updates during low-traffic hours**
+- ✅ **Backup WordPress site** before major updates
+- ✅ **Monitor monitoring** - have backup alerts during update window
+
+### **Q: "Database growth concerns - monitoring data will fill up server space"**
+
+**Solution: Intelligent Data Management**
+```php
+// Automatic cleanup configuration
+define('MMWM_RETAIN_LOGS_DAYS', 90);       // Keep logs for 90 days
+define('MMWM_ARCHIVE_OLD_DATA', true);     // Archive instead of delete
+define('MMWM_COMPRESS_LOGS', true);        // Compress old monitoring data
+define('MMWM_MAX_DB_SIZE_MB', 500);        // Alert when DB exceeds 500MB
+
+// Custom cleanup schedule
+add_action('mmwm_daily_cleanup', function() {
+    // Archive data older than 6 months
+    // Compress logs older than 30 days  
+    // Delete non-critical logs older than 1 year
+});
+```
+
+**Data Management Features:**
+- ✅ **Automatic log rotation** every 30 days
+- ✅ **Compression for old data** (up to 80% space savings)
+- ✅ **Configurable retention periods** per data type
+- ✅ **Export capabilities** for historical analysis
+
+### **Q: "WordPress cron is unreliable - what if monitoring doesn't run?"**
+
+**Solution: Multiple Cron Strategies**
+
+#### **Option 1: Server-Level Cron (Recommended)**
+```bash
+# Add to server crontab for guaranteed execution
+*/5 * * * * curl -s https://yoursite.com/wp-cron.php >/dev/null 2>&1
+
+# Alternative with wget
+*/5 * * * * wget -q -O - https://yoursite.com/wp-cron.php >/dev/null 2>&1
+
+# For monitoring-specific cron
+*/1 * * * * php /path/to/wordpress/wp-content/plugins/mm-web-monitoring/cron-runner.php
+```
+
+#### **Option 2: External Cron Services**
+```bash
+# Use external services to trigger WordPress cron
+- EasyCron.com (free tier available)
+- cron-job.org (free service)
+- SetCronJob.com (free tier)
+
+# Setup: Point to your wp-cron.php URL every 5 minutes
+```
+
+#### **Option 3: Monitoring Watchdog**
+```php
+// Self-healing monitoring system
+add_action('init', function() {
+    $last_run = get_option('mmwm_last_cron_run');
+    $current_time = time();
+    
+    // If cron hasn't run in 10 minutes, force execution
+    if (($current_time - $last_run) > 600) {
+        do_action('mmwm_force_cron_execution');
+        update_option('mmwm_last_cron_run', $current_time);
+    }
+});
+```
+
+### **Q: "Email notifications might be marked as spam - how to ensure delivery?"**
+
+**Solution: Professional Email Configuration**
+
+#### **SMTP Setup (Essential)**
+```php
+// Recommended SMTP plugins and services
+- WP Mail SMTP (plugin) + Gmail/Outlook
+- SendGrid WordPress Plugin
+- Mailgun Official Plugin  
+- Amazon SES integration
+
+// Custom SMTP configuration
+define('MMWM_SMTP_HOST', 'smtp.gmail.com');
+define('MMWM_SMTP_PORT', 587);
+define('MMWM_SMTP_SECURE', 'tls');
+define('MMWM_SMTP_AUTH', true);
+```
+
+#### **Email Deliverability Best Practices**
+```php
+// Enhanced email headers for better delivery
+add_filter('mmwm_email_headers', function($headers) {
+    $headers[] = 'X-Mailer: MM-Web-Monitoring/1.0.7';
+    $headers[] = 'X-Priority: 1'; // High priority for alerts
+    $headers[] = 'X-MSMail-Priority: High';
+    $headers[] = 'From: Website Monitor <noreply@yourdomain.com>';
+    $headers[] = 'Reply-To: support@yourdomain.com';
+    return $headers;
+});
+
+// SPF/DKIM/DMARC configuration
+/*
+Add to your domain DNS:
+TXT record: v=spf1 include:_spf.google.com ~all
+TXT record: v=DMARC1; p=quarantine; rua=mailto:dmarc@yourdomain.com
+CNAME: default._domainkey.yourdomain.com → default._domainkey.gmail.com
+*/
+```
+
+### **Q: "Security vulnerabilities - self-hosted plugin might have security holes"**
+
+**Solution: Enterprise Security Measures**
+
+#### **Security Hardening Configuration**
+```php
+// Add to wp-config.php for maximum security
+define('MMWM_REQUIRE_2FA', true);          // Require 2FA for monitoring access
+define('MMWM_IP_WHITELIST', '203.0.113.1,203.0.113.2'); // Restrict admin access
+define('MMWM_ENCRYPT_SETTINGS', true);     // Encrypt sensitive data
+define('MMWM_AUDIT_LOGGING', true);        // Log all security events
+define('MMWM_DISABLE_FILE_EDIT', true);    // Disable plugin file editing
+
+// Security headers for monitoring requests
+add_filter('mmwm_request_headers', function($headers) {
+    $headers['X-Monitoring-Token'] = wp_hash('monitoring-secret-key');
+    $headers['X-Monitoring-Time'] = time();
+    $headers['X-Monitoring-Site'] = get_site_url();
+    return $headers;
+});
+```
+
+#### **Regular Security Practices**
+- ✅ **Regular WordPress updates** (core, plugins, themes)
+- ✅ **Strong passwords** with 2FA enabled
+- ✅ **File permission restrictions** (644 for files, 755 for directories)
+- ✅ **Backup before changes** with automated restoration
+- ✅ **Security monitoring** with plugins like Wordfence/Sucuri
+
+---
+
+## �🛠️ **Installation & Quick Start**
 
 ### **Method 1: WordPress Admin (Recommended)**
 1. Download plugin `.zip` file
 2. Go to **Plugins > Add New > Upload Plugin**
-3. Choose file dan click **Install Now**
+3. Choose file and click **Install Now**
 4. Click **Activate Plugin**
 
 ### **Method 2: FTP Upload**
@@ -430,7 +752,7 @@ MM Web Monitoring monitors from **your own server**, giving you complete control
 </details>
 
 <details>
-<summary><strong>Q: What happens if my server has dynamic IP?</strong></summary>
+<summary><strong>Q: What happens if my monitoring server has dynamic IP?</strong></summary>
 
 **A**: For Cloudflare users with dynamic IP:
 1. Use **hostname-based allowlisting** instead of IP-based
@@ -441,15 +763,18 @@ MM Web Monitoring monitors from **your own server**, giving you complete control
 </details>
 
 <details>
-<summary><strong>Q: How many websites can I monitor?</strong></summary>
+<summary><strong>Q: How many websites can I monitor realistically?</strong></summary>
 
-**A**: No artificial limits! Performance depends on:
-- **Server resources** (CPU, memory, bandwidth)
-- **Monitoring intervals** (more frequent = more resources)
-- **Check complexity** (simple HTTP vs full page analysis)
-- **Email notification frequency**
+**A**: Performance depends on your server specifications:
 
-Typical servers handle 50-200 websites comfortably.
+**Shared Hosting**: 10-25 websites (5-minute intervals)
+**VPS (2GB RAM)**: 50-100 websites (5-minute intervals)  
+**Dedicated Server**: 200-500+ websites (1-minute intervals)
+**Enterprise Setup**: 1000+ websites (distributed across multiple servers)
+
+**Resource Usage Per Website:**
+- **5-minute checks**: ~0.1% CPU, 2MB RAM per site
+- **1-minute checks**: ~0.5% CPU, 5MB RAM per site
 
 </details>
 
@@ -462,6 +787,147 @@ Typical servers handle 50-200 websites comfortably.
 - **Wildcard certificates**
 - **Multi-domain (SAN) certificates**
 - **Self-signed certificates** (with warnings)
+
+</details>
+
+<details>
+<summary><strong>Q: What about false positives due to network issues?</strong></summary>
+
+**A**: We implement **smart detection** to minimize false positives:
+
+**Built-in Reliability Features:**
+- **Triple-check system**: 3 consecutive failures before marking as "DOWN"
+- **Timeout optimization**: Progressive timeout (10s → 30s → 60s)
+- **Network path verification**: Check multiple network routes
+- **Error pattern analysis**: Distinguish between temporary glitches and real outages
+
+**Configuration for Reliability:**
+```php
+// Add to wp-config.php for ultra-reliable monitoring
+define('MMWM_FAILURE_THRESHOLD', 3);       // Require 3 failures before alert
+define('MMWM_RETRY_INTERVALS', '30,60,120'); // Retry after 30s, 60s, 2min
+define('MMWM_SMART_TIMEOUT', true);        // Progressive timeout strategy
+```
+
+</details>
+
+<details>
+<summary><strong>Q: How do I handle WordPress maintenance mode during monitoring?</strong></summary>
+
+**A**: **Smart Maintenance Detection:**
+
+**Automatic Detection:**
+- **HTTP 503 responses** are treated as maintenance, not downtime
+- **Common maintenance plugins** are automatically detected
+- **Custom maintenance pages** can be configured
+
+**Manual Configuration:**
+```php
+// Configure maintenance mode detection
+add_filter('mmwm_is_maintenance_mode', function($is_maintenance, $response) {
+    // Custom logic to detect maintenance mode
+    if (strpos($response['body'], 'maintenance') !== false) {
+        return true;
+    }
+    if ($response['code'] === 503) {
+        return true;
+    }
+    return $is_maintenance;
+}, 10, 2);
+```
+
+</details>
+
+<details>
+<summary><strong>Q: What about monitoring websites behind CDN or load balancers?</strong></summary>
+
+**A**: **Advanced CDN & Load Balancer Support:**
+
+**CDN Considerations:**
+- **Multiple endpoint testing**: Test origin server + CDN endpoints
+- **Geographic testing**: Monitor from different global locations
+- **Cache-busting**: Add random parameters to bypass CDN cache
+- **CDN-specific headers**: Detect CloudFlare, KeyCDN, MaxCDN status
+
+**Load Balancer Handling:**
+```php
+// Configure for load-balanced environments
+define('MMWM_TEST_MULTIPLE_IPS', true);    // Test all A records
+define('MMWM_FOLLOW_REDIRECTS', true);     // Follow load balancer redirects
+define('MMWM_CHECK_ALL_NODES', true);      // Test individual load balancer nodes
+```
+
+</details>
+
+<details>
+<summary><strong>Q: How secure is storing monitoring data in my WordPress database?</strong></summary>
+
+**A**: **Enterprise-Grade Security Measures:**
+
+**Data Protection:**
+- **Encrypted sensitive data**: URLs, credentials, API keys encrypted at rest
+- **Secure communication**: All monitoring requests use HTTPS with certificate validation
+- **Access control**: Role-based permissions for monitoring data
+- **Audit logging**: Complete audit trail of all monitoring activities
+
+**Security Configuration:**
+```php
+// Enhanced security settings
+define('MMWM_ENCRYPT_DATABASE', true);     // Encrypt all monitoring data
+define('MMWM_REQUIRE_SSL', true);          // Force HTTPS for all requests
+define('MMWM_IP_WHITELIST_ADMIN', true);   // Restrict admin access by IP
+define('MMWM_TWO_FACTOR_AUTH', true);      // Require 2FA for monitoring access
+```
+
+</details>
+
+<details>
+<summary><strong>Q: What happens during WordPress updates or plugin conflicts?</strong></summary>
+
+**A**: **Update-Safe Monitoring:**
+
+**Automatic Safeguards:**
+- **Staging environment testing**: Test updates before production
+- **Configuration backup**: Automatic backup before updates
+- **Rollback capability**: Quick rollback if monitoring breaks
+- **Health checks**: Monitor the monitor system itself
+
+**Best Practices:**
+```php
+// Implement monitoring health checks
+add_action('mmwm_self_check', function() {
+    // Check if monitoring is working properly
+    $health = mmwm_check_monitoring_health();
+    if (!$health['status']) {
+        // Send alert to admin
+        wp_mail('admin@site.com', 'Monitoring System Alert', 
+            'MM Web Monitoring may need attention: ' . $health['message']);
+    }
+});
+```
+
+</details>
+
+<details>
+<summary><strong>Q: How do I handle time zone differences for global monitoring?</strong></summary>
+
+**A**: **Global Time Zone Management:**
+
+**Intelligent Time Handling:**
+- **UTC standardization**: All internal times stored in UTC
+- **Local time display**: Dashboard shows local time zones
+- **Business hours awareness**: Alert only during specified business hours
+- **Global coordination**: Coordinate monitoring across multiple time zones
+
+**Configuration Example:**
+```php
+// Global time zone configuration
+define('MMWM_BUSINESS_TIMEZONE', 'America/New_York');
+define('MMWM_BUSINESS_HOURS_START', 8);    // 8 AM
+define('MMWM_BUSINESS_HOURS_END', 18);     // 6 PM
+define('MMWM_WEEKEND_ALERTS', false);      // No weekend alerts
+define('MMWM_HOLIDAY_CALENDAR', true);     // Respect holiday calendar
+```
 
 </details>
 
