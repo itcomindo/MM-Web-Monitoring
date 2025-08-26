@@ -17,10 +17,15 @@ class MMWM_Activator
      */
     public static function activate()
     {
+        // Register the custom post type first
+        require_once MMWM_PLUGIN_DIR . 'includes/class-mmwm-cpt.php';
+        $cpt = new MMWM_CPT();
+        $cpt->register_cpt();
+
         // Schedule the cron event
         self::setup_cron_schedule();
 
-        // Flush rewrite rules
+        // Flush rewrite rules after registering CPT
         flush_rewrite_rules();
 
         // Set default options

@@ -3,7 +3,7 @@
 /**
  * Plugin Name:       MM Web Monitoring
  * Description:       A simple plugin to monitor website performance and uptime.
- * Version:           1.0.7
+ * Version:           1.0.8
  * Author:            Budi Haryono
  * Author URI:        https://budiharyono.id/
  * License:           GPL2 or later
@@ -21,12 +21,15 @@ if (! defined('ABSPATH')) {
 }
 
 // Define constants
-define('MMWM_VERSION', '1.0.7');
+define('MMWM_VERSION', '1.0.8');
 define('MMWM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('MMWM_PLUGIN_URL', plugin_dir_url(__FILE__));
 
 // Include the main core class.
 require_once MMWM_PLUGIN_DIR . 'includes/class-mmwm-core.php';
+
+// Include activator for activation hooks
+require_once MMWM_PLUGIN_DIR . 'includes/core/class-mmwm-activator.php';
 
 /**
  * Begins execution of the plugin.
@@ -39,13 +42,20 @@ require_once MMWM_PLUGIN_DIR . 'includes/class-mmwm-core.php';
  */
 function mmwm_run_plugin()
 {
-    $plugin = new MMWM_Core();
-    $plugin->run();
+    try {
+        $plugin = new MMWM_Core();
+        $plugin->run();
+    } catch (Exception $e) {
+        // Log error but don't break the site
+        error_log('MMWM Plugin Error: ' . $e->getMessage());
+    }
 }
-mmwm_run_plugin();
+
+// Initialize plugin after all plugins are loaded
+add_action('plugins_loaded', 'mmwm_run_plugin');
 
 /**
  * Activation and deactivation hooks.
  */
 register_activation_hook(__FILE__, array('MMWM_Activator', 'activate'));
-register_deactivation_hook(__FILE__, array('MMWM_Activator', 'deactivate'));
+register_deactivation_hook(__FILE__, array('MMWM_Core', 'deactivate'));
