@@ -3,7 +3,7 @@
 <div align="center">
 
 [![WordPress Plugin](https://img.shields.io/badge/WordPress-Plugin-blue.svg)](https://wordpress.org/)
-[![Version](https://img.shields.io/badge/Version-1.0.7-green.svg)]()
+[![Version](https://img.shields.io/badge/Version-1.0.8-green.svg)]()
 [![License](https://img.shields.io/badge/License-GPL--2.0-orange.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-7.4%2B-purple.svg)]()
 
@@ -29,13 +29,14 @@ Bayangkan Anda mengelola 50+ website client, tiba-tiba ada 5 website down bersam
 
 ---
 
-## ✨ **Fitur Unggulan v1.0.7**
+## ✨ **Fitur Unggulan v1.0.8**
 
 ### 🔍 **Website Monitoring**
 - **Smart Monitoring**: Response code check + HTML element verification
 - **Flexible Intervals**: 5 minutes to 24 hours customizable per website
 - **Real-time Status**: Live dashboard dengan auto-reload
 - **Bulk Operations**: Monitor 100+ websites dengan bulk add/actions
+- **Enhanced Stability**: Improved error handling dan plugin reliability
 
 ### 📧 **Intelligent Email Notifications**  
 - **Unified HTML Templates**: Professional, responsive email design
@@ -48,6 +49,12 @@ Bayangkan Anda mengelola 50+ website client, tiba-tiba ada 5 website down bersam
 - **Early Warnings**: 30/10/7 days before expiry alerts  
 - **Certificate Details**: Issuer, expiry date, days remaining
 - **Bulk SSL Status**: See all SSL status di satu view
+
+### 🏢 **Domain Monitoring**
+- **Domain Expiry Check**: Automatic domain registration monitoring
+- **Manual Override**: Set custom expiry dates when needed
+- **WHOIS Integration**: Real-time domain information lookup
+- **Advanced Alerts**: 10 days before domain expiration warnings
 
 ### 🌐 **Domain Expiration Monitoring** ⭐ *NEW*
 - **Smart Domain Detection**: Auto-extract root domain dari URL complex
@@ -62,6 +69,32 @@ Bayangkan Anda mengelola 50+ website client, tiba-tiba ada 5 website down bersam
 - **Beautiful UI**: Modern, responsive admin interface
 - **Bulk Management**: Select multiple websites untuk bulk operations
 - **Inline Editing**: Quick edit langsung dari table view
+
+---
+
+## 🆕 **What's New in v1.0.8**
+
+### 🛠️ **Critical Fixes & Stability**
+- ✅ **FIXED**: Fatal plugin activation errors - Plugin sekarang bisa diaktifkan tanpa error
+- ✅ **FIXED**: "Website URL not found" AJAX errors di admin interface  
+- ✅ **FIXED**: CPT Domain Monitoring field yang tidak berfungsi
+- ✅ **FIXED**: JavaScript conflicts yang menyebabkan admin error
+- ✅ **IMPROVED**: Plugin initialization dengan error handling yang lebih baik
+
+### 🔧 **Enhanced Performance**
+- ⚡ **OPTIMIZED**: Admin table rendering untuk performance yang lebih baik
+- ⚡ **IMPROVED**: AJAX handler security dan validation
+- ⚡ **ENHANCED**: Plugin activation/deactivation workflow
+- ⚡ **STRENGTHENED**: Admin interface reliability dan error handling
+
+### 📚 **Better Documentation**
+- 📖 **UPDATED**: Enhanced code documentation dengan inline comments
+- 📖 **IMPROVED**: Error handling documentation untuk debugging
+- 📖 **CLEANER**: Simplified admin UI untuk prevent conflicts
+
+> **🚨 Breaking Changes**: Removed experimental domain expiry enable buttons untuk ensure stability dan compatibility dengan WordPress core CPT system.
+
+---
 
 ### 🕐 **Global Daily Monitoring**
 - **Daily Global Check**: Full SSL & domain check sekali sehari

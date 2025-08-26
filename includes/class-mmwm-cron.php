@@ -19,14 +19,64 @@ class MMWM_Cron
      */
     public function __construct()
     {
-        $this->scheduler = new MMWM_Scheduler();
+        // Use lazy loading to avoid dependency issues
+    }
+
+    /**
+     * Get scheduler instance (lazy loading)
+     *
+     * @return MMWM_Scheduler
+     */
+    private function get_scheduler()
+    {
+        if (!$this->scheduler) {
+            $this->scheduler = new MMWM_Scheduler();
+        }
+        return $this->scheduler;
     }
 
     public function add_cron_intervals($schedules)
     {
+        // Add new minute-based intervals
+        $schedules['every_one_minute'] = array(
+            'interval' => 60,
+            'display'  => esc_html__('Every 1 Minute'),
+        );
+        $schedules['every_three_minutes'] = array(
+            'interval' => 180,
+            'display'  => esc_html__('Every 3 Minutes'),
+        );
         $schedules['every_five_minutes'] = array(
             'interval' => 300,
             'display'  => esc_html__('Every 5 Minutes'),
+        );
+        $schedules['every_seven_minutes'] = array(
+            'interval' => 420,
+            'display'  => esc_html__('Every 7 Minutes'),
+        );
+        $schedules['every_ten_minutes'] = array(
+            'interval' => 600,
+            'display'  => esc_html__('Every 10 Minutes'),
+        );
+        $schedules['every_fifteen_minutes'] = array(
+            'interval' => 900,
+            'display'  => esc_html__('Every 15 Minutes'),
+        );
+        $schedules['every_twenty_five_minutes'] = array(
+            'interval' => 1500,
+            'display'  => esc_html__('Every 25 Minutes'),
+        );
+        $schedules['every_thirty_minutes'] = array(
+            'interval' => 1800,
+            'display'  => esc_html__('Every 30 Minutes'),
+        );
+        $schedules['every_forty_five_minutes'] = array(
+            'interval' => 2700,
+            'display'  => esc_html__('Every 45 Minutes'),
+        );
+        $schedules['every_sixty_minutes'] = array(
+            'interval' => 3600,
+            'display'  => esc_html__('Every 60 Minutes'),
         );
         $schedules['daily'] = array(
             'interval' => 86400, // 24 hours
@@ -40,27 +90,47 @@ class MMWM_Cron
      */
     public function schedule_daily_global_check()
     {
+        // Only schedule if global check is enabled
+        if (!get_option('mmwm_global_check_enabled', 0)) {
+            // Unschedule if disabled
+            wp_clear_scheduled_hook('mmwm_daily_global_check_event');
+            return;
+        }
+
         if (!wp_next_scheduled('mmwm_daily_global_check_event')) {
-            $hour = get_option('mmwm_global_cron_hour', 2);
+            $frequency = get_option('mmwm_global_check_frequency', 3);
 
-            // Calculate next occurrence at specified hour
-            $today = date('Y-m-d');
-            $target_time = strtotime($today . ' ' . sprintf('%02d:00:00', $hour));
+            if ($frequency === 'daily') {
+                $hour = get_option('mmwm_global_cron_hour', 2);
+                // Calculate next occurrence at specified hour
+                $today = date('Y-m-d');
+                $target_time = strtotime($today . ' ' . sprintf('%02d:00:00', $hour));
 
-            // If target time has already passed today, schedule for tomorrow
-            if ($target_time <= time()) {
-                $target_time = strtotime('+1 day', $target_time);
+                // If target time has already passed today, schedule for tomorrow
+                if ($target_time <= time()) {
+                    $target_time = strtotime('+1 day', $target_time);
+                }
+
+                wp_schedule_event($target_time, 'daily', 'mmwm_daily_global_check_event');
+            } else {
+                // Schedule based on frequency (3, 7, 14 days)
+                $interval = intval($frequency) * 86400; // Convert days to seconds
+                $next_run = time() + $interval;
+                wp_schedule_single_event($next_run, 'mmwm_daily_global_check_event');
             }
-
-            wp_schedule_event($target_time, 'daily', 'mmwm_daily_global_check_event');
         }
     }
 
     /**
-     * Run daily global monitoring check
+     * Run daily global monitoring check with sequential processing
      */
     public function run_daily_global_check()
     {
+        // Check if global check is enabled
+        if (!get_option('mmwm_global_check_enabled', 0)) {
+            return;
+        }
+
         // Get all websites with monitoring enabled
         $websites = get_posts(array(
             'post_type' => 'mmwm_website',
@@ -74,10 +144,47 @@ class MMWM_Cron
             )
         ));
 
-        foreach ($websites as $website) {
-            $this->check_ssl_expiration($website->ID);
-            $this->check_domain_expiration_global($website->ID);
+        if (empty($websites)) {
+            return;
         }
+
+        // Process websites sequentially with 15-second delays
+        foreach ($websites as $index => $website) {
+            // Schedule each check with progressive delay
+            $delay = $index * 15; // 15 seconds between each check
+            wp_schedule_single_event(time() + $delay, 'mmwm_sequential_global_check', array($website->ID));
+        }
+
+        // Reschedule next global check based on frequency
+        $this->reschedule_next_global_check();
+    }
+
+    /**
+     * Handle sequential global check for individual website
+     */
+    public function handle_sequential_global_check($post_id)
+    {
+        $this->check_ssl_expiration($post_id);
+        $this->check_domain_expiration_global($post_id);
+
+        // Log global check
+        update_post_meta($post_id, '_mmwm_last_global_check', time());
+    }
+
+    /**
+     * Reschedule next global check based on frequency setting
+     */
+    private function reschedule_next_global_check()
+    {
+        $frequency = get_option('mmwm_global_check_frequency', 3);
+
+        if ($frequency !== 'daily') {
+            // For non-daily frequency, schedule the next occurrence
+            $interval = intval($frequency) * 86400; // Convert days to seconds
+            $next_run = time() + $interval;
+            wp_schedule_single_event($next_run, 'mmwm_daily_global_check_event');
+        }
+        // For daily frequency, WordPress cron will handle the recurring schedule
     }
 
     /**
@@ -253,7 +360,7 @@ class MMWM_Cron
     public function run_checks()
     {
         // Use the new scheduler for better performance and modularity
-        return $this->scheduler->schedule_checks();
+        return $this->get_scheduler()->schedule_checks();
     }
 
     public function perform_check($post_id)

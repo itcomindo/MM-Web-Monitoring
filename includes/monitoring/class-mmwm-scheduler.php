@@ -6,7 +6,9 @@ if (! defined('ABSPATH')) {
 }
 
 /**
- * Scheduler class implementing scheduler interface
+ * Scheduler class
+ * 
+ * Handles website monitoring schedule and checks
  */
 class MMWM_Scheduler implements MMWM_Scheduler_Interface
 {
@@ -29,8 +31,33 @@ class MMWM_Scheduler implements MMWM_Scheduler_Interface
      */
     public function __construct()
     {
-        $this->checker = new MMWM_Checker();
-        $this->notifier = new MMWM_Notifier();
+        // Use lazy loading to avoid dependency issues
+    }
+
+    /**
+     * Get checker instance (lazy loading)
+     *
+     * @return MMWM_Checker
+     */
+    private function get_checker()
+    {
+        if (!$this->checker) {
+            $this->checker = new MMWM_Checker();
+        }
+        return $this->checker;
+    }
+
+    /**
+     * Get notifier instance (lazy loading)
+     *
+     * @return MMWM_Notifier
+     */
+    private function get_notifier()
+    {
+        if (!$this->notifier) {
+            $this->notifier = new MMWM_Notifier();
+        }
+        return $this->notifier;
     }
 
     /**
@@ -47,7 +74,9 @@ class MMWM_Scheduler implements MMWM_Scheduler_Interface
         }
 
         foreach ($websites as $post_id) {
-            $this->process_website_check($post_id);
+            if ($this->is_due_for_check($post_id)) {
+                $this->process_website_check($post_id);
+            }
         }
 
         return true;
@@ -60,9 +89,6 @@ class MMWM_Scheduler implements MMWM_Scheduler_Interface
      */
     public function get_websites_to_check()
     {
-        $current_time = time();
-        $websites_to_check = [];
-
         $args = [
             'post_type'      => 'mmwm_website',
             'posts_per_page' => -1,
@@ -77,38 +103,27 @@ class MMWM_Scheduler implements MMWM_Scheduler_Interface
             'fields' => 'ids'
         ];
 
-        $query = new WP_Query($args);
-
-        if (!$query->have_posts()) {
-            return $websites_to_check;
-        }
-
-        foreach ($query->posts as $post_id) {
-            if ($this->is_due_for_check($post_id)) {
-                $websites_to_check[] = $post_id;
-            }
-        }
-
-        return $websites_to_check;
+        $websites = get_posts($args);
+        return is_array($websites) ? $websites : [];
     }
 
     /**
      * Calculate next check time for a website
      *
      * @param int $post_id Website post ID
-     * @param int $interval Interval in minutes
+     * @param string $interval_string Interval string like '15min'
      * @return int Timestamp of next check
      */
-    public function calculate_next_check($post_id, $interval)
+    public function calculate_next_check($post_id, $interval_string = '15min')
     {
         $last_check = get_post_meta($post_id, '_mmwm_last_check', true) ?: time();
-        $interval_seconds = $interval * 60;
+        $interval_seconds = $this->convert_interval_to_seconds($interval_string);
 
         return $last_check + $interval_seconds;
     }
 
     /**
-     * Check if a website is due for checking
+     * Check if website is due for check
      *
      * @param int $post_id Website post ID
      * @return bool True if due for check
@@ -117,10 +132,38 @@ class MMWM_Scheduler implements MMWM_Scheduler_Interface
     {
         $current_time = time();
         $last_check = get_post_meta($post_id, '_mmwm_last_check', true) ?: 0;
-        $interval = intval(get_post_meta($post_id, '_mmwm_interval', true)) ?: 15;
-        $interval_seconds = $interval * 60;
+        $interval_string = get_post_meta($post_id, '_mmwm_monitoring_interval', true) ?: '15min';
+        $interval_seconds = $this->convert_interval_to_seconds($interval_string);
 
         return ($current_time - $last_check) >= $interval_seconds;
+    }
+
+    /**
+     * Convert interval string to seconds
+     *
+     * @param string $interval_string Interval string like '5min', '1hour', etc.
+     * @return int Interval in seconds
+     */
+    private function convert_interval_to_seconds($interval_string)
+    {
+        $intervals_map = array(
+            '1min' => 60,
+            '3min' => 180,
+            '5min' => 300,
+            '7min' => 420,
+            '10min' => 600,
+            '15min' => 900,
+            '25min' => 1500,
+            '30min' => 1800,
+            '45min' => 2700,
+            '60min' => 3600,
+            '1hour' => 3600,
+            '6hour' => 21600,
+            '12hour' => 43200,
+            '24hour' => 86400
+        );
+
+        return isset($intervals_map[$interval_string]) ? $intervals_map[$interval_string] : 900; // Default to 15 minutes
     }
 
     /**
@@ -133,7 +176,7 @@ class MMWM_Scheduler implements MMWM_Scheduler_Interface
         $old_status = get_post_meta($post_id, '_mmwm_status', true);
 
         // Perform the check
-        $result = $this->checker->perform_check($post_id);
+        $result = $this->get_checker()->perform_check($post_id);
 
         // Update website status
         $this->update_website_status($post_id, $result, $old_status);
@@ -149,105 +192,121 @@ class MMWM_Scheduler implements MMWM_Scheduler_Interface
     private function update_website_status($post_id, $result, $old_status)
     {
         $new_status = $result['status'];
-        $reason = $result['reason'];
-        $timestamp = $result['timestamp'];
 
-        // Update meta fields
-        update_post_meta($post_id, '_mmwm_last_check', $timestamp);
-        update_post_meta($post_id, '_mmwm_status', $new_status);
-        update_post_meta($post_id, '_mmwm_status_reason', $reason);
+        // Update last check timestamp
+        update_post_meta($post_id, '_mmwm_last_check', time());
 
-        // Handle notifications
-        $this->handle_notification($post_id, $old_status, $new_status, $reason);
+        // Update status if changed
+        if ($old_status !== $new_status) {
+            update_post_meta($post_id, '_mmwm_status', $new_status);
+            update_post_meta($post_id, '_mmwm_status_changed', time());
 
-        // Log the check
-        $this->log_check($post_id, $old_status, $new_status, $reason);
-    }
-
-    /**
-     * Handle notification sending
-     *
-     * @param int $post_id Website post ID
-     * @param string $old_status Previous status
-     * @param string $new_status Current status
-     * @param string $reason Check reason
-     */
-    private function handle_notification($post_id, $old_status, $new_status, $reason)
-    {
-        $notification_trigger = get_post_meta($post_id, '_mmwm_notification_trigger', true) ?: 'always';
-
-        if ($this->notifier->should_send_notification($notification_trigger, $old_status, $new_status)) {
-            $email_sent = $this->notifier->send_notification($post_id, $old_status, $new_status, $reason);
-
-            $email_log = $email_sent ?
-                'Email notification sent successfully at ' . wp_date('Y-m-d H:i:s') :
-                'Failed to send email notification at ' . wp_date('Y-m-d H:i:s');
-        } else {
-            $email_log = 'Email not sent (conditions not met)';
+            // Send notification if status changed
+            $this->get_notifier()->send_notification($post_id, $old_status, $new_status);
         }
 
-        update_post_meta($post_id, '_mmwm_email_log', $email_log);
+        // Update response time
+        if (isset($result['response_time'])) {
+            update_post_meta($post_id, '_mmwm_response_time', $result['response_time']);
+        }
+
+        // Update response code
+        if (isset($result['response_code'])) {
+            update_post_meta($post_id, '_mmwm_response_code', $result['response_code']);
+        }
+
+        // Log the check
+        $this->log_check($post_id, $result);
     }
 
     /**
      * Log check result
      *
      * @param int $post_id Website post ID
-     * @param string $old_status Previous status
-     * @param string $new_status Current status
-     * @param string $reason Check reason
+     * @param array $result Check result
      */
-    private function log_check($post_id, $old_status, $new_status, $reason)
+    private function log_check($post_id, $result)
     {
-        $website_title = get_the_title($post_id);
-        $message = sprintf(
-            'MMWM Check: %s (%d) - %s → %s - %s',
-            $website_title,
-            $post_id,
-            $old_status ?: 'N/A',
-            $new_status,
-            $reason
-        );
+        $log_entry = [
+            'timestamp' => time(),
+            'status' => $result['status'],
+            'response_time' => $result['response_time'] ?? 0,
+            'response_code' => $result['response_code'] ?? 0,
+            'message' => $result['message'] ?? ''
+        ];
 
-        error_log($message);
+        // Get existing logs
+        $logs = get_post_meta($post_id, '_mmwm_check_logs', true) ?: [];
+
+        // Add new log entry
+        $logs[] = $log_entry;
+
+        // Keep only last 50 log entries
+        if (count($logs) > 50) {
+            $logs = array_slice($logs, -50);
+        }
+
+        // Update logs
+        update_post_meta($post_id, '_mmwm_check_logs', $logs);
     }
 
     /**
-     * Get next check time for display
+     * Get scheduled checks
      *
-     * @param int $post_id Website post ID
-     * @return string Human readable next check time
+     * @return array Array of scheduled checks
      */
-    public function get_next_check_display($post_id)
+    public function get_scheduled_checks()
     {
-        $interval = intval(get_post_meta($post_id, '_mmwm_interval', true)) ?: 15;
-        $next_check = $this->calculate_next_check($post_id, $interval);
-        $current_time = time();
+        $websites = $this->get_websites_to_check();
+        $scheduled = [];
 
-        if ($next_check <= $current_time) {
-            return __('Due now', 'mm-web-monitoring');
+        foreach ($websites as $post_id) {
+            $interval_string = get_post_meta($post_id, '_mmwm_monitoring_interval', true) ?: '15min';
+            $next_check = $this->calculate_next_check($post_id, $interval_string);
+
+            $scheduled[] = [
+                'post_id' => $post_id,
+                'title' => get_the_title($post_id),
+                'next_check' => $next_check,
+                'interval' => $interval_string
+            ];
         }
 
-        $time_diff = $next_check - $current_time;
+        // Sort by next check time
+        usort($scheduled, function ($a, $b) {
+            return $a['next_check'] - $b['next_check'];
+        });
 
-        if ($time_diff < 3600) {
-            $minutes = ceil($time_diff / 60);
-            return sprintf(_n('%d minute', '%d minutes', $minutes, 'mm-web-monitoring'), $minutes);
-        } else {
-            $hours = ceil($time_diff / 3600);
-            return sprintf(_n('%d hour', '%d hours', $hours, 'mm-web-monitoring'), $hours);
-        }
+        return $scheduled;
     }
 
     /**
-     * Get next check timestamp
+     * Get next check time for a website
      *
      * @param int $post_id Website post ID
-     * @return int Timestamp of next check
+     * @return int Next check timestamp
      */
-    public function get_next_check_timestamp($post_id)
+    public function get_next_check_time($post_id)
     {
-        $interval = intval(get_post_meta($post_id, '_mmwm_interval', true)) ?: 15;
-        return $this->calculate_next_check($post_id, $interval);
+        $interval_string = get_post_meta($post_id, '_mmwm_monitoring_interval', true) ?: '15min';
+        return $this->calculate_next_check($post_id, $interval_string);
+    }
+
+    /**
+     * Force check for a website
+     *
+     * @param int $post_id Website post ID
+     * @return array Check result
+     */
+    public function force_check($post_id)
+    {
+        $this->process_website_check($post_id);
+
+        return [
+            'status' => get_post_meta($post_id, '_mmwm_status', true),
+            'response_time' => get_post_meta($post_id, '_mmwm_response_time', true),
+            'response_code' => get_post_meta($post_id, '_mmwm_response_code', true),
+            'last_check' => get_post_meta($post_id, '_mmwm_last_check', true)
+        ];
     }
 }

@@ -35,6 +35,16 @@ class MMWM_CPT
             'menu_icon'             => 'dashicons-networking',
             'publicly_queryable'    => false,
             'capability_type'       => 'post',
+            'capabilities'          => array(
+                'edit_post'          => 'manage_options',
+                'read_post'          => 'manage_options',
+                'delete_post'        => 'manage_options',
+                'edit_posts'         => 'manage_options',
+                'edit_others_posts'  => 'manage_options',
+                'delete_posts'       => 'manage_options',
+                'publish_posts'      => 'manage_options',
+                'read_private_posts' => 'manage_options',
+            ),
         );
         register_post_type('mmwm_website', $args);
     }
@@ -43,6 +53,7 @@ class MMWM_CPT
     {
         add_meta_box('mmwm_website_details', 'Monitoring Settings', [$this, 'render_meta_box'], 'mmwm_website', 'normal', 'high');
         add_meta_box('mmwm_website_status', 'Current Monitoring Status', [$this, 'render_status_metabox'], 'mmwm_website', 'side', 'high');
+        add_meta_box('mmwm_monitoring_history', '7-Day Monitoring History', [$this, 'render_history_metabox'], 'mmwm_website', 'side', 'default');
     }
 
     public function render_status_metabox($post)
@@ -56,6 +67,102 @@ class MMWM_CPT
             <p><strong>Last Check:</strong> <span id="mmwm-last-check"><?php echo $last_check_timestamp ? human_time_diff($last_check_timestamp) . ' ago' : 'N/A'; ?></span></p>
         </div>
     <?php
+    }
+
+    public function render_history_metabox($post)
+    {
+        // Get monitoring history for the last 7 days
+        $history = $this->get_monitoring_history($post->ID, 7);
+
+        if (empty($history)) {
+            echo '<p>' . __('No monitoring history available yet.', 'mm-web-monitoring') . '</p>';
+            return;
+        }
+
+        echo '<div style="max-height: 300px; overflow-y: auto;">';
+        foreach ($history as $date => $events) {
+            $date_formatted = date('F j, Y', strtotime($date));
+            $down_count = count($events);
+
+            echo '<div style="margin-bottom: 10px; padding: 8px; background: #f9f9f9; border-left: 3px solid ' . ($down_count > 0 ? '#dc3545' : '#28a745') . ';">';
+            echo '<strong>' . esc_html($date_formatted) . '</strong><br>';
+
+            if ($down_count > 0) {
+                echo '<span style="color: #dc3545;">' . sprintf(_n('%d detected down event', '%d detected down events', $down_count, 'mm-web-monitoring'), $down_count) . '</span>';
+
+                // Show down times
+                foreach ($events as $event) {
+                    $time = date('H:i', strtotime($event['timestamp']));
+                    echo '<br><small style="color: #666;">• ' . sprintf(__('Down at %s', 'mm-web-monitoring'), $time) . '</small>';
+                }
+            } else {
+                echo '<span style="color: #28a745;">' . __('No downtime detected', 'mm-web-monitoring') . '</span>';
+            }
+
+            echo '</div>';
+        }
+        echo '</div>';
+    }
+
+    /**
+     * Get monitoring history for specified number of days
+     */
+    private function get_monitoring_history($post_id, $days = 7)
+    {
+        $history = get_post_meta($post_id, '_mmwm_monitoring_history', true);
+        if (!is_array($history)) {
+            $history = array();
+        }
+
+        // Filter history for the last X days
+        $cutoff_date = date('Y-m-d', strtotime("-{$days} days"));
+        $filtered_history = array();
+
+        // Create entries for each day in the range, even if no events
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-{$i} days"));
+            $filtered_history[$date] = isset($history[$date]) ? $history[$date] : array();
+        }
+
+        return $filtered_history;
+    }
+
+    /**
+     * Log monitoring event to history
+     */
+    public function log_monitoring_event($post_id, $status, $timestamp = null)
+    {
+        if ($timestamp === null) {
+            $timestamp = current_time('mysql');
+        }
+
+        $date = date('Y-m-d', strtotime($timestamp));
+        $history = get_post_meta($post_id, '_mmwm_monitoring_history', true);
+        if (!is_array($history)) {
+            $history = array();
+        }
+
+        // Only log down events for history
+        if ($status === 'DOWN' || $status === 'FAILED') {
+            if (!isset($history[$date])) {
+                $history[$date] = array();
+            }
+
+            $history[$date][] = array(
+                'timestamp' => $timestamp,
+                'status' => $status
+            );
+
+            // Keep only last 30 days of history to prevent database bloat
+            $cutoff_date = date('Y-m-d', strtotime('-30 days'));
+            foreach ($history as $hist_date => $events) {
+                if ($hist_date < $cutoff_date) {
+                    unset($history[$hist_date]);
+                }
+            }
+
+            update_post_meta($post_id, '_mmwm_monitoring_history', $history);
+        }
     }
 
     public function render_meta_box($post)
@@ -142,9 +249,16 @@ class MMWM_CPT
                 <td>
                     <?php $monitoring_interval = get_post_meta($post->ID, '_mmwm_monitoring_interval', true) ?: '15min'; ?>
                     <select name="mmwm_monitoring_interval" style="width: 200px;">
+                        <option value="1min" <?php selected($monitoring_interval, '1min'); ?>><?php _e('Every 1 minute', 'mm-web-monitoring'); ?></option>
+                        <option value="3min" <?php selected($monitoring_interval, '3min'); ?>><?php _e('Every 3 minutes', 'mm-web-monitoring'); ?></option>
                         <option value="5min" <?php selected($monitoring_interval, '5min'); ?>><?php _e('Every 5 minutes', 'mm-web-monitoring'); ?></option>
+                        <option value="7min" <?php selected($monitoring_interval, '7min'); ?>><?php _e('Every 7 minutes', 'mm-web-monitoring'); ?></option>
+                        <option value="10min" <?php selected($monitoring_interval, '10min'); ?>><?php _e('Every 10 minutes', 'mm-web-monitoring'); ?></option>
                         <option value="15min" <?php selected($monitoring_interval, '15min'); ?>><?php _e('Every 15 minutes', 'mm-web-monitoring'); ?></option>
+                        <option value="25min" <?php selected($monitoring_interval, '25min'); ?>><?php _e('Every 25 minutes', 'mm-web-monitoring'); ?></option>
                         <option value="30min" <?php selected($monitoring_interval, '30min'); ?>><?php _e('Every 30 minutes', 'mm-web-monitoring'); ?></option>
+                        <option value="45min" <?php selected($monitoring_interval, '45min'); ?>><?php _e('Every 45 minutes', 'mm-web-monitoring'); ?></option>
+                        <option value="60min" <?php selected($monitoring_interval, '60min'); ?>><?php _e('Every 60 minutes', 'mm-web-monitoring'); ?></option>
                         <option value="1hour" <?php selected($monitoring_interval, '1hour'); ?>><?php _e('Every hour', 'mm-web-monitoring'); ?></option>
                         <option value="6hour" <?php selected($monitoring_interval, '6hour'); ?>><?php _e('Every 6 hours', 'mm-web-monitoring'); ?></option>
                         <option value="12hour" <?php selected($monitoring_interval, '12hour'); ?>><?php _e('Every 12 hours', 'mm-web-monitoring'); ?></option>
@@ -255,45 +369,247 @@ class MMWM_CPT
         }
     ?>
         <style>
+            /* Modern metabox styling */
+            .postbox {
+                border: 1px solid #e1e5e9;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+                margin-bottom: 20px;
+            }
+
+            .postbox .postbox-header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border-radius: 8px 8px 0 0;
+                padding: 15px 20px;
+                border-bottom: none;
+            }
+
+            .postbox .postbox-header h2 {
+                color: white;
+                font-size: 16px;
+                font-weight: 600;
+                margin: 0;
+            }
+
+            .inside {
+                padding: 20px;
+                background: #fff;
+                border-radius: 0 0 8px 8px;
+            }
+
+            /* Enhanced form table styling */
+            .form-table {
+                background: white;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            }
+
+            .form-table th {
+                background: #f8f9fa;
+                color: #495057;
+                font-weight: 500;
+                border-bottom: 1px solid #e9ecef;
+                padding: 15px 20px;
+                width: 200px;
+            }
+
+            .form-table td {
+                padding: 15px 20px;
+                border-bottom: 1px solid #e9ecef;
+                background: white;
+            }
+
+            .form-table tr:last-child th,
+            .form-table tr:last-child td {
+                border-bottom: none;
+            }
+
             /* Enhanced radio button styling */
             .mmwm-radio-group {
-                border: 1px solid #ddd;
-                padding: 15px;
-                border-radius: 5px;
-                background: #f9f9f9;
+                border: 1px solid #e1e5e9;
+                padding: 20px;
+                border-radius: 8px;
+                background: #f8f9fa;
+                margin: 10px 0;
             }
 
             .mmwm-radio-option {
                 display: flex;
                 align-items: flex-start;
-                padding: 12px;
+                padding: 15px;
                 background: white;
-                border-radius: 6px;
-                margin-bottom: 10px;
-                border: 2px solid transparent;
+                border-radius: 8px;
+                margin-bottom: 12px;
+                border: 2px solid #e9ecef;
                 cursor: pointer;
-                transition: all 0.2s ease;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             }
 
             .mmwm-radio-option:hover {
-                border-color: #0073aa;
-                box-shadow: 0 2px 8px rgba(0, 115, 170, 0.1);
+                border-color: #667eea;
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+                transform: translateY(-1px);
             }
 
             .mmwm-radio-option input[type="radio"] {
-                margin-right: 12px;
-                margin-top: 2px;
-                transform: scale(1.2);
+                margin-right: 15px;
+                margin-top: 3px;
+                transform: scale(1.3);
+                accent-color: #667eea;
             }
 
             .mmwm-radio-option input[type="radio"]:checked+.mmwm-radio-content {
-                color: #0073aa;
+                color: #667eea;
+                font-weight: 500;
             }
 
             .mmwm-radio-option:has(input[type="radio"]:checked) {
-                border-color: #0073aa;
+                border-color: #667eea;
+                background: linear-gradient(135deg, #f0f8ff 0%, #e3f2fd 100%);
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+            }
+
+            .mmwm-radio-content {
+                flex: 1;
+            }
+
+            .mmwm-radio-content h4 {
+                margin: 0 0 8px 0;
+                font-size: 14px;
+                font-weight: 600;
+                color: #495057;
+            }
+
+            .mmwm-radio-content p {
+                margin: 0;
+                font-size: 13px;
+                color: #6c757d;
+                line-height: 1.4;
+            }
+
+            /* Modern form controls */
+            input[type="text"],
+            input[type="url"],
+            input[type="email"],
+            select,
+            textarea {
+                border: 2px solid #e9ecef;
+                border-radius: 6px;
+                padding: 10px 12px;
+                font-size: 14px;
+                transition: all 0.3s ease;
+                background: white;
+            }
+
+            input[type="text"]:focus,
+            input[type="url"]:focus,
+            input[type="email"]:focus,
+            select:focus,
+            textarea:focus {
+                border-color: #667eea;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+                outline: none;
+            }
+
+            /* Modern button styling */
+            .button {
+                border-radius: 6px;
+                font-weight: 500;
+                transition: all 0.3s ease;
+            }
+
+            .button-primary {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border: none;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+
+            .button-primary:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            }
+
+            /* Status headline improvements */
+            #mmwm-status-headline {
+                border-radius: 8px;
+                font-size: 14px;
+                letter-spacing: 0.5px;
+                text-align: center;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+
+            /* History metabox styling */
+            .mmwm-history-item {
+                margin-bottom: 12px;
+                padding: 12px;
+                background: #f8f9fa;
+                border-left: 4px solid #28a745;
+                border-radius: 0 6px 6px 0;
+                transition: all 0.3s ease;
+            }
+
+            .mmwm-history-item.has-downtime {
+                border-left-color: #dc3545;
+                background: #fff5f5;
+            }
+
+            .mmwm-history-item:hover {
+                background: #e9ecef;
+                transform: translateX(2px);
+            }
+
+            /* Status details improvements */
+            #mmwm-status-details p {
+                margin: 8px 0;
+                padding: 8px;
+                background: #f8f9fa;
+                border-radius: 4px;
+                border-left: 3px solid #667eea;
+            }
+
+            /* Description text styling */
+            .description {
+                color: #6c757d;
+                font-style: italic;
+                margin-top: 5px;
+            }
+
+            /* Domain monitoring section */
+            #domain-expiry-details {
                 background: #f0f8ff;
+                border: 1px solid #e3f2fd;
+                border-radius: 6px;
+                padding: 15px;
+                margin-top: 10px;
+            }
+
+            /* Checkbox styling */
+            input[type="checkbox"] {
+                transform: scale(1.2);
+                accent-color: #667eea;
+                margin-right: 8px;
+            }
+
+            /* Responsive improvements */
+            @media (max-width: 768px) {
+                .form-table th {
+                    width: auto;
+                    display: block;
+                    text-align: left;
+                    padding-bottom: 5px;
+                }
+
+                .form-table td {
+                    display: block;
+                    padding-top: 5px;
+                }
+
+                .mmwm-radio-option {
+                    padding: 12px;
+                }
             }
 
             .mmwm-radio-content strong {
@@ -454,7 +770,7 @@ class MMWM_CPT
         // Handle monitoring interval
         if (isset($_POST['mmwm_monitoring_interval'])) {
             $interval = sanitize_text_field($_POST['mmwm_monitoring_interval']);
-            $allowed_intervals = ['5min', '15min', '30min', '1hour', '6hour', '12hour', '24hour'];
+            $allowed_intervals = ['1min', '3min', '5min', '7min', '10min', '15min', '25min', '30min', '45min', '60min', '1hour', '6hour', '12hour', '24hour'];
             if (in_array($interval, $allowed_intervals)) {
                 update_post_meta($post_id, '_mmwm_monitoring_interval', $interval);
             }

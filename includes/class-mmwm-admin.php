@@ -26,6 +26,9 @@ class MMWM_Admin
         register_setting('mmwm_global_options', 'mmwm_default_email', array('sanitize_callback' => 'sanitize_email'));
         register_setting('mmwm_global_options', 'mmwm_auto_reload_interval', array('sanitize_callback' => 'intval'));
         register_setting('mmwm_global_options', 'mmwm_global_cron_hour', array('sanitize_callback' => 'intval'));
+        register_setting('mmwm_global_options', 'mmwm_global_check_enabled', array('sanitize_callback' => 'intval'));
+        register_setting('mmwm_global_options', 'mmwm_global_check_frequency', array('sanitize_callback' => 'intval'));
+        register_setting('mmwm_global_options', 'mmwm_custom_user_agent_enabled', array('sanitize_callback' => 'intval'));
 
         add_settings_section(
             'mmwm_main_settings_section',
@@ -98,18 +101,594 @@ class MMWM_Admin
 
     public function render_global_options_page()
     {
+        // Enqueue modern styles and scripts
+        wp_enqueue_script('mmwm-admin-modern', plugin_dir_url(__FILE__) . '../assets/admin-modern.js', array('jquery'), '1.0.8', true);
+        wp_localize_script('mmwm-admin-modern', 'mmwm_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('mmwm_admin_nonce')
+        ));
+
+        // Get current server info
+        $server_ip = $this->get_server_ip();
+        $ssl_info = $this->get_site_ssl_info();
+
 ?>
+        <style>
+            .mmwm-modern-container {
+                max-width: 1200px;
+                margin: 20px 0;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            }
+
+            .mmwm-card {
+                background: #fff;
+                border-radius: 12px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                margin-bottom: 20px;
+                overflow: hidden;
+                border: 1px solid #e1e5e9;
+            }
+
+            .mmwm-card-header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 20px;
+                font-size: 18px;
+                font-weight: 600;
+            }
+
+            .mmwm-card-body {
+                padding: 20px;
+            }
+
+            .mmwm-toggle-switch {
+                position: relative;
+                display: inline-block;
+                width: 60px;
+                height: 34px;
+            }
+
+            .mmwm-toggle-switch input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+
+            .mmwm-slider {
+                position: absolute;
+                cursor: pointer;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: #ccc;
+                transition: .4s;
+                border-radius: 34px;
+            }
+
+            .mmwm-slider:before {
+                position: absolute;
+                content: "";
+                height: 26px;
+                width: 26px;
+                left: 4px;
+                bottom: 4px;
+                background-color: white;
+                transition: .4s;
+                border-radius: 50%;
+            }
+
+            input:checked+.mmwm-slider {
+                background-color: #2196F3;
+            }
+
+            input:checked+.mmwm-slider:before {
+                transform: translateX(26px);
+            }
+
+            .mmwm-form-row {
+                display: flex;
+                align-items: center;
+                margin-bottom: 15px;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 8px;
+                border-left: 4px solid #2196F3;
+            }
+
+            .mmwm-form-label {
+                flex: 1;
+                font-weight: 500;
+                color: #495057;
+            }
+
+            .mmwm-form-control {
+                flex: 2;
+                margin-left: 20px;
+            }
+
+            .mmwm-btn-modern {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+
+            .mmwm-btn-modern:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            }
+
+            .mmwm-success-notice {
+                background: #d4edda;
+                border: 1px solid #c3e6cb;
+                color: #155724;
+                padding: 12px;
+                border-radius: 6px;
+                margin: 10px 0;
+                display: none;
+            }
+
+            .mmwm-error-notice {
+                background: #f8d7da;
+                border: 1px solid #f5c6cb;
+                color: #721c24;
+                padding: 12px;
+                border-radius: 6px;
+                margin: 10px 0;
+                display: none;
+            }
+
+            .mmwm-info-box {
+                background: #e3f2fd;
+                border: 1px solid #bbdefb;
+                color: #0d47a1;
+                padding: 15px;
+                border-radius: 8px;
+                margin: 15px 0;
+            }
+
+            .mmwm-code-box {
+                background: #f4f4f4;
+                border: 1px solid #ddd;
+                padding: 15px;
+                border-radius: 6px;
+                font-family: monospace;
+                font-size: 12px;
+                overflow-x: auto;
+                margin: 10px 0;
+            }
+        </style>
+
         <div class="wrap">
-            <h1><?php _e('Web Monitoring Global Options', 'mm-web-monitoring'); ?></h1>
-            <form method="post" action="options.php">
-                <?php
-                settings_fields('mmwm_global_options');
-                do_settings_sections('mmwm-global-options');
-                submit_button();
-                ?>
-            </form>
+            <h1><?php _e('🌐 Web Monitoring Global Options v1.0.8', 'mm-web-monitoring'); ?></h1>
+
+            <div class="mmwm-modern-container">
+
+                <!-- Server Information Card -->
+                <div class="mmwm-card">
+                    <div class="mmwm-card-header">
+                        <i class="dashicons dashicons-admin-site-alt3"></i> <?php _e('Server Information', 'mm-web-monitoring'); ?>
+                    </div>
+                    <div class="mmwm-card-body">
+                        <div class="mmwm-form-row">
+                            <div class="mmwm-form-label"><?php _e('Monitoring Server IP:', 'mm-web-monitoring'); ?></div>
+                            <div class="mmwm-form-control">
+                                <strong><?php echo esc_html($server_ip); ?></strong>
+                            </div>
+                        </div>
+
+                        <div class="mmwm-form-row">
+                            <div class="mmwm-form-label"><?php _e('Monitoring Site SSL Status:', 'mm-web-monitoring'); ?></div>
+                            <div class="mmwm-form-control">
+                                <?php if ($ssl_info['valid']): ?>
+                                    <span style="color: #28a745; font-weight: bold;">✅ Valid until <?php echo esc_html($ssl_info['expires']); ?></span>
+                                <?php else: ?>
+                                    <span style="color: #dc3545; font-weight: bold;">❌ <?php echo esc_html($ssl_info['error']); ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cloudflare Integration Card -->
+                <div class="mmwm-card">
+                    <div class="mmwm-card-header">
+                        <i class="dashicons dashicons-cloud"></i> <?php _e('Cloudflare Integration', 'mm-web-monitoring'); ?>
+                    </div>
+                    <div class="mmwm-card-body">
+                        <div class="mmwm-info-box">
+                            <strong><?php _e('Security Rules for Cloudflare WAF (Choose One Method):', 'mm-web-monitoring'); ?></strong>
+
+                            <h4><?php _e('Method 1: IP + User Agent (Recommended)', 'mm-web-monitoring'); ?></h4>
+                            <div class="mmwm-code-box">
+                                (ip.src eq <?php echo esc_html($server_ip); ?>) or (http.user_agent contains "MM-Web-Monitoring")
+                            </div>
+
+                            <h4><?php _e('Method 2: IP Only', 'mm-web-monitoring'); ?></h4>
+                            <div class="mmwm-code-box">
+                                ip.src eq <?php echo esc_html($server_ip); ?>
+                            </div>
+
+                            <h4><?php _e('Method 3: User Agent Only', 'mm-web-monitoring'); ?></h4>
+                            <div class="mmwm-code-box">
+                                http.user_agent contains "MM-Web-Monitoring"
+                            </div>
+
+                            <h4><?php _e('Method 4: Country + User Agent', 'mm-web-monitoring'); ?></h4>
+                            <div class="mmwm-code-box">
+                                (ip.geoip.country eq "ID") and (http.user_agent contains "MM-Web-Monitoring")
+                            </div>
+
+                            <p><strong><?php _e('How to apply:', 'mm-web-monitoring'); ?></strong></p>
+                            <ol>
+                                <li><?php _e('Login to Cloudflare Dashboard', 'mm-web-monitoring'); ?></li>
+                                <li><?php _e('Go to Security → WAF → Custom Rules', 'mm-web-monitoring'); ?></li>
+                                <li><?php _e('Create new rule with one of the expressions above', 'mm-web-monitoring'); ?></li>
+                                <li><?php _e('Set Action to "Allow" and Priority to "1"', 'mm-web-monitoring'); ?></li>
+                                <li><?php _e('Add descriptive name like "MM Web Monitoring Allow"', 'mm-web-monitoring'); ?></li>
+                            </ol>
+
+                            <p><strong><?php _e('Security Notes:', 'mm-web-monitoring'); ?></strong></p>
+                            <ul>
+                                <li><?php _e('Method 1 is most secure (combines IP and User Agent)', 'mm-web-monitoring'); ?></li>
+                                <li><?php _e('Method 2 is simplest but IP-dependent', 'mm-web-monitoring'); ?></li>
+                                <li><?php _e('Method 3 is flexible but relies only on User Agent', 'mm-web-monitoring'); ?></li>
+                                <li><?php _e('Method 4 restricts by country (change "ID" to your country code)', 'mm-web-monitoring'); ?></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuration Card -->
+                <div class="mmwm-card">
+                    <div class="mmwm-card-header">
+                        <i class="dashicons dashicons-admin-settings"></i> <?php _e('Configuration Settings', 'mm-web-monitoring'); ?>
+                    </div>
+                    <div class="mmwm-card-body">
+                        <form method="post" action="options.php" id="mmwm-global-form">
+                            <?php settings_fields('mmwm_global_options'); ?>
+
+                            <div class="mmwm-form-row">
+                                <div class="mmwm-form-label">
+                                    <label for="mmwm_default_email"><?php _e('Default Notification Email', 'mm-web-monitoring'); ?></label>
+                                </div>
+                                <div class="mmwm-form-control">
+                                    <input type="email" id="mmwm_default_email" name="mmwm_default_email" value="<?php echo esc_attr(get_option('mmwm_default_email', get_option('admin_email'))); ?>" class="regular-text" />
+                                </div>
+                            </div>
+
+                            <div class="mmwm-form-row">
+                                <div class="mmwm-form-label">
+                                    <label for="mmwm_auto_reload_interval"><?php _e('Auto-Reload Interval (seconds)', 'mm-web-monitoring'); ?></label>
+                                </div>
+                                <div class="mmwm-form-control">
+                                    <input type="number" id="mmwm_auto_reload_interval" name="mmwm_auto_reload_interval" value="<?php echo esc_attr(get_option('mmwm_auto_reload_interval', 30)); ?>" min="10" max="300" class="small-text" />
+                                </div>
+                            </div>
+
+                            <!-- Global Check Enable/Disable -->
+                            <div class="mmwm-form-row">
+                                <div class="mmwm-form-label">
+                                    <label><?php _e('Enable Global Daily Check', 'mm-web-monitoring'); ?></label>
+                                    <p class="description"><?php _e('Run comprehensive SSL and domain checks once daily', 'mm-web-monitoring'); ?></p>
+                                </div>
+                                <div class="mmwm-form-control">
+                                    <label class="mmwm-toggle-switch">
+                                        <input type="checkbox" id="mmwm_global_check_enabled" name="mmwm_global_check_enabled" value="1" <?php checked(get_option('mmwm_global_check_enabled', 0), 1); ?> onchange="toggleGlobalCheckOptions(this.checked)">
+                                        <span class="mmwm-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div id="global-check-options" style="<?php echo get_option('mmwm_global_check_enabled', 0) ? '' : 'display:none;'; ?>">
+                                <div class="mmwm-form-row">
+                                    <div class="mmwm-form-label">
+                                        <label for="mmwm_global_check_frequency"><?php _e('Global Check Frequency', 'mm-web-monitoring'); ?></label>
+                                    </div>
+                                    <div class="mmwm-form-control">
+                                        <select id="mmwm_global_check_frequency" name="mmwm_global_check_frequency">
+                                            <option value="3" <?php selected(get_option('mmwm_global_check_frequency', 3), 3); ?>><?php _e('Every 3 days', 'mm-web-monitoring'); ?></option>
+                                            <option value="7" <?php selected(get_option('mmwm_global_check_frequency', 3), 7); ?>><?php _e('Every 7 days', 'mm-web-monitoring'); ?></option>
+                                            <option value="14" <?php selected(get_option('mmwm_global_check_frequency', 3), 14); ?>><?php _e('Every 14 days', 'mm-web-monitoring'); ?></option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="mmwm-form-row">
+                                    <div class="mmwm-form-label">
+                                        <label for="mmwm_global_cron_hour"><?php _e('Daily Check Time', 'mm-web-monitoring'); ?></label>
+                                        <p class="description"><?php _e('What time each day should the global monitoring check run?', 'mm-web-monitoring'); ?></p>
+                                    </div>
+                                    <div class="mmwm-form-control">
+                                        <select id="mmwm_global_cron_hour" name="mmwm_global_cron_hour">
+                                            <?php for ($hour = 0; $hour < 24; $hour++): ?>
+                                                <option value="<?php echo $hour; ?>" <?php selected(get_option('mmwm_global_cron_hour', 2), $hour); ?>><?php echo sprintf('%02d:00', $hour); ?></option>
+                                            <?php endfor; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Custom User Agent -->
+                            <div class="mmwm-form-row">
+                                <div class="mmwm-form-label">
+                                    <label><?php _e('Auto-Configure Custom User Agent', 'mm-web-monitoring'); ?></label>
+                                    <p class="description"><?php _e('Automatically add custom user agent to wp-config.php', 'mm-web-monitoring'); ?></p>
+                                </div>
+                                <div class="mmwm-form-control">
+                                    <label class="mmwm-toggle-switch">
+                                        <input type="checkbox" id="mmwm_custom_user_agent_enabled" name="mmwm_custom_user_agent_enabled" value="1" <?php checked(get_option('mmwm_custom_user_agent_enabled', 0), 1); ?> onchange="handleUserAgentToggle(this.checked)">
+                                        <span class="mmwm-slider"></span>
+                                    </label>
+                                    <div id="user-agent-status" style="margin-top: 10px;"></div>
+                                </div>
+                            </div>
+
+                            <div class="mmwm-success-notice" id="success-notice"></div>
+                            <div class="mmwm-error-notice" id="error-notice"></div>
+
+                            <?php submit_button(__('Save Changes', 'mm-web-monitoring'), 'primary mmwm-btn-modern'); ?>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <script>
+            function toggleGlobalCheckOptions(enabled) {
+                document.getElementById('global-check-options').style.display = enabled ? 'block' : 'none';
+            }
+
+            function showNotice(message, type) {
+                const notice = document.getElementById(type + '-notice');
+                notice.textContent = message;
+                notice.style.display = 'block';
+                setTimeout(() => notice.style.display = 'none', 3000);
+            }
+
+            function handleUserAgentToggle(enabled) {
+                const statusDiv = document.getElementById('user-agent-status');
+                statusDiv.innerHTML = '<span style="color: #666;">Processing...</span>';
+
+                jQuery.ajax({
+                    url: mmwm_ajax.ajax_url,
+                    type: 'POST',
+                    data: {
+                        action: 'mmwm_toggle_user_agent',
+                        enabled: enabled ? 1 : 0,
+                        nonce: mmwm_ajax.nonce
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            statusDiv.innerHTML = '<span style="color: #28a745;">✅ ' + response.data + '</span>';
+                            showNotice(response.data, 'success');
+                        } else {
+                            statusDiv.innerHTML = '<span style="color: #dc3545;">❌ ' + response.data + '</span>';
+                            showNotice(response.data, 'error');
+                            // Revert toggle if failed
+                            document.getElementById('mmwm_custom_user_agent_enabled').checked = !enabled;
+                        }
+                    },
+                    error: function() {
+                        statusDiv.innerHTML = '<span style="color: #dc3545;">❌ Ajax error</span>';
+                        showNotice('Ajax request failed', 'error');
+                        document.getElementById('mmwm_custom_user_agent_enabled').checked = !enabled;
+                    }
+                });
+            }
+        </script>
     <?php
+    }
+
+    /**
+     * Get server IP address
+     */
+    private function get_server_ip()
+    {
+        // Try multiple methods to get server IP
+        $ip_sources = array(
+            'HTTP_CLIENT_IP',
+            'HTTP_X_FORWARDED_FOR',
+            'HTTP_X_FORWARDED',
+            'HTTP_X_CLUSTER_CLIENT_IP',
+            'HTTP_FORWARDED_FOR',
+            'HTTP_FORWARDED',
+            'REMOTE_ADDR'
+        );
+
+        foreach ($ip_sources as $source) {
+            if (!empty($_SERVER[$source])) {
+                $ip = $_SERVER[$source];
+                // Handle comma-separated IPs
+                if (strpos($ip, ',') !== false) {
+                    $ip = trim(explode(',', $ip)[0]);
+                }
+                if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                    return $ip;
+                }
+            }
+        }
+
+        // Fallback: try to get external IP
+        $external_ip = wp_remote_get('https://icanhazip.com');
+        if (!is_wp_error($external_ip) && wp_remote_retrieve_response_code($external_ip) === 200) {
+            return trim(wp_remote_retrieve_body($external_ip));
+        }
+
+        return __('Unable to detect', 'mm-web-monitoring');
+    }
+
+    /**
+     * Get SSL information for current site
+     */
+    private function get_site_ssl_info()
+    {
+        $site_url = get_site_url();
+        if (strpos($site_url, 'https://') !== 0) {
+            return array(
+                'valid' => false,
+                'error' => __('Site is not using HTTPS', 'mm-web-monitoring')
+            );
+        }
+
+        $parsed_url = parse_url($site_url);
+        $hostname = $parsed_url['host'];
+        $port = isset($parsed_url['port']) ? $parsed_url['port'] : 443;
+
+        $context = stream_context_create([
+            'ssl' => [
+                'capture_peer_cert' => true,
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+            ],
+        ]);
+
+        $socket = @stream_socket_client(
+            "ssl://{$hostname}:{$port}",
+            $errno,
+            $errstr,
+            30,
+            STREAM_CLIENT_CONNECT,
+            $context
+        );
+
+        if (!$socket) {
+            return array(
+                'valid' => false,
+                'error' => __('Unable to connect to SSL', 'mm-web-monitoring')
+            );
+        }
+
+        $cert = stream_context_get_params($socket);
+        fclose($socket);
+
+        if (!isset($cert['options']['ssl']['peer_certificate'])) {
+            return array(
+                'valid' => false,
+                'error' => __('No SSL certificate found', 'mm-web-monitoring')
+            );
+        }
+
+        $cert_info = openssl_x509_parse($cert['options']['ssl']['peer_certificate']);
+        if (!$cert_info) {
+            return array(
+                'valid' => false,
+                'error' => __('Unable to parse SSL certificate', 'mm-web-monitoring')
+            );
+        }
+
+        $valid_to = $cert_info['validTo_time_t'];
+        $current_time = time();
+
+        if ($valid_to < $current_time) {
+            return array(
+                'valid' => false,
+                'error' => __('SSL certificate has expired', 'mm-web-monitoring')
+            );
+        }
+
+        return array(
+            'valid' => true,
+            'expires' => date('Y-m-d H:i:s', $valid_to),
+            'days_remaining' => ceil(($valid_to - $current_time) / 86400)
+        );
+    }
+
+    /**
+     * Handle AJAX toggle for custom user agent
+     */
+    public function handle_ajax_toggle_user_agent()
+    {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'mmwm_admin_nonce')) {
+            wp_die(__('Security check failed', 'mm-web-monitoring'));
+        }
+
+        // Check user permissions
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Insufficient permissions', 'mm-web-monitoring'));
+        }
+
+        $enabled = intval($_POST['enabled']);
+        $wp_config_path = ABSPATH . 'wp-config.php';
+
+        // Check if wp-config.php is writable
+        if (!is_writable($wp_config_path)) {
+            wp_send_json_error(__('wp-config.php is not writable. Please set file permissions to 644 or contact your hosting provider.', 'mm-web-monitoring'));
+            return;
+        }
+
+        $wp_config_content = file_get_contents($wp_config_path);
+        if ($wp_config_content === false) {
+            wp_send_json_error(__('Unable to read wp-config.php file.', 'mm-web-monitoring'));
+            return;
+        }
+
+        // Create user agent string that's safe for wp-config.php (no WordPress functions)
+        // Use a static version string since wp-config.php loads before WordPress core
+        $user_agent_define = "define('MMWM_USER_AGENT', 'MM-Web-Monitoring/1.0.8');";
+        $user_agent_pattern = "/\/\/\s*MM Web Monitoring Custom User Agent\s*\n.*?define\s*\(\s*['\"]MMWM_USER_AGENT['\"]\s*,.*?\)\s*;\s*\n?/s";
+        $simple_pattern = "/define\s*\(\s*['\"]MMWM_USER_AGENT['\"]\s*,.*?\)\s*;/";
+
+        if ($enabled) {
+            // Add the define if it doesn't exist
+            if (!preg_match($simple_pattern, $wp_config_content)) {
+                // Find the right place to insert (before the "That's all" comment)
+                $insert_pattern = "/\/\*.*?That's all.*?\*\//";
+                if (preg_match($insert_pattern, $wp_config_content)) {
+                    $wp_config_content = preg_replace(
+                        $insert_pattern,
+                        "\n// MM Web Monitoring Custom User Agent\n" . $user_agent_define . "\n\n$0",
+                        $wp_config_content
+                    );
+                } else {
+                    // Fallback: add before the closing PHP tag or at the end
+                    if (strpos($wp_config_content, '?>') !== false) {
+                        $wp_config_content = str_replace('?>', "\n// MM Web Monitoring Custom User Agent\n" . $user_agent_define . "\n\n?>", $wp_config_content);
+                    } else {
+                        $wp_config_content .= "\n\n// MM Web Monitoring Custom User Agent\n" . $user_agent_define . "\n";
+                    }
+                }
+
+                if (file_put_contents($wp_config_path, $wp_config_content) === false) {
+                    wp_send_json_error(__('Failed to write to wp-config.php. Please check file permissions.', 'mm-web-monitoring'));
+                    return;
+                }
+
+                update_option('mmwm_custom_user_agent_enabled', 1);
+                wp_send_json_success(__('Custom user agent successfully added to wp-config.php', 'mm-web-monitoring'));
+            } else {
+                update_option('mmwm_custom_user_agent_enabled', 1);
+                wp_send_json_success(__('Custom user agent is already configured in wp-config.php', 'mm-web-monitoring'));
+            }
+        } else {
+            // Remove the define if it exists - use comprehensive pattern first
+            if (preg_match($user_agent_pattern, $wp_config_content)) {
+                $wp_config_content = preg_replace($user_agent_pattern, '', $wp_config_content);
+            } elseif (preg_match($simple_pattern, $wp_config_content)) {
+                // Fallback to simple pattern and clean up manually
+                $wp_config_content = preg_replace($simple_pattern, '', $wp_config_content);
+                // Remove the comment line if it exists
+                $wp_config_content = preg_replace("/\/\/\s*MM Web Monitoring Custom User Agent\s*\n/", '', $wp_config_content);
+            }
+
+            // Clean up any extra newlines
+            $wp_config_content = preg_replace("/\n{3,}/", "\n\n", $wp_config_content);
+
+            if (file_put_contents($wp_config_path, $wp_config_content) === false) {
+                wp_send_json_error(__('Failed to write to wp-config.php. Please check file permissions.', 'mm-web-monitoring'));
+                return;
+            }
+
+            update_option('mmwm_custom_user_agent_enabled', 0);
+            wp_send_json_success(__('Custom user agent successfully removed from wp-config.php', 'mm-web-monitoring'));
+        }
     }
 
     public function add_bulk_add_menu()
@@ -127,18 +706,163 @@ class MMWM_Admin
     public function render_bulk_add_page()
     {
     ?>
+        <style>
+            .mmwm-modern-container {
+                max-width: 1200px;
+                margin: 20px 0;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            }
+
+            .mmwm-card {
+                background: #fff;
+                border-radius: 12px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                margin-bottom: 20px;
+                overflow: hidden;
+                border: 1px solid #e1e5e9;
+            }
+
+            .mmwm-card-header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 20px;
+                font-size: 18px;
+                font-weight: 600;
+            }
+
+            .mmwm-card-body {
+                padding: 20px;
+            }
+
+            .mmwm-btn-modern {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                text-decoration: none;
+                display: inline-block;
+            }
+
+            .mmwm-btn-modern:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+                color: white;
+            }
+
+            .mmwm-textarea-modern {
+                width: 100%;
+                min-height: 300px;
+                padding: 15px;
+                border: 2px solid #e1e5e9;
+                border-radius: 8px;
+                font-family: monospace;
+                font-size: 14px;
+                line-height: 1.5;
+                resize: vertical;
+                transition: border-color 0.3s ease;
+            }
+
+            .mmwm-textarea-modern:focus {
+                border-color: #667eea;
+                outline: none;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            }
+
+            .mmwm-progress-container {
+                background: #f8f9fa;
+                border-radius: 8px;
+                padding: 20px;
+                margin-top: 20px;
+                border-left: 4px solid #667eea;
+            }
+
+            #mmwm-progress-bar-container {
+                background-color: #e9ecef;
+                border-radius: 8px;
+                padding: 4px;
+                box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+                margin: 15px 0;
+            }
+
+            #mmwm-progress-bar {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                height: 30px;
+                border-radius: 6px;
+                text-align: center;
+                color: white;
+                line-height: 30px;
+                font-weight: 500;
+                transition: width 0.4s ease;
+                width: 0%;
+            }
+
+            #mmwm-bulk-log {
+                background-color: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 6px;
+                padding: 15px;
+                margin-top: 15px;
+                height: 250px;
+                overflow-y: auto;
+                font-family: monospace;
+                font-size: 13px;
+                line-height: 1.4;
+            }
+
+            .mmwm-info-box {
+                background: #e3f2fd;
+                border: 1px solid #bbdefb;
+                color: #0d47a1;
+                padding: 15px;
+                border-radius: 8px;
+                margin: 15px 0;
+            }
+        </style>
+
         <div class="wrap">
-            <h1><?php _e('Add Websites in Bulk', 'mm-web-monitoring'); ?></h1>
-            <p><?php _e('Enter one website URL per line. The plugin will automatically use the domain name as the title.', 'mm-web-monitoring'); ?></p>
-            <textarea id="mmwm-bulk-urls" rows="15" class="large-text" placeholder="https://example.com/&#10;https://wordpress.org/&#10;https://another-site.net/path"></textarea>
-            <p><button type="button" class="button button-primary" id="mmwm-start-bulk-add"><?php _e('Add Bulk Monitoring', 'mm-web-monitoring'); ?></button></p>
-            <div id="mmwm-bulk-progress-wrapper" style="display:none;">
-                <h3><?php _e('Progress:', 'mm-web-monitoring'); ?></h3>
-                <div id="mmwm-progress-bar-container" style="background-color: #ddd; border-radius: 5px; padding: 3px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);">
-                    <div id="mmwm-progress-bar">0%</div>
+            <h1><?php _e('📝 Add Websites in Bulk', 'mm-web-monitoring'); ?></h1>
+
+            <div class="mmwm-modern-container">
+                <div class="mmwm-card">
+                    <div class="mmwm-card-header">
+                        <i class="dashicons dashicons-plus-alt2"></i> <?php _e('Bulk Website Addition', 'mm-web-monitoring'); ?>
+                    </div>
+                    <div class="mmwm-card-body">
+                        <div class="mmwm-info-box">
+                            <strong><?php _e('Instructions:', 'mm-web-monitoring'); ?></strong><br>
+                            <?php _e('Enter one website URL per line. The plugin will automatically use the domain name as the title.', 'mm-web-monitoring'); ?>
+                            <br><br>
+                            <strong><?php _e('Example:', 'mm-web-monitoring'); ?></strong><br>
+                            <code>https://example.com/<br>https://wordpress.org/<br>https://another-site.net/path</code>
+                        </div>
+
+                        <label for="mmwm-bulk-urls" style="font-weight: 500; margin-bottom: 10px; display: block;">
+                            <?php _e('Website URLs (one per line):', 'mm-web-monitoring'); ?>
+                        </label>
+                        <textarea id="mmwm-bulk-urls" class="mmwm-textarea-modern" placeholder="https://example.com/&#10;https://wordpress.org/&#10;https://another-site.net/path"></textarea>
+
+                        <p style="margin-top: 20px;">
+                            <button type="button" class="mmwm-btn-modern" id="mmwm-start-bulk-add">
+                                <i class="dashicons dashicons-upload" style="vertical-align: middle; margin-right: 5px;"></i>
+                                <?php _e('Start Bulk Addition', 'mm-web-monitoring'); ?>
+                            </button>
+                        </p>
+
+                        <div id="mmwm-bulk-progress-wrapper" class="mmwm-progress-container" style="display:none;">
+                            <h3><?php _e('🔄 Processing Progress', 'mm-web-monitoring'); ?></h3>
+                            <div id="mmwm-progress-bar-container">
+                                <div id="mmwm-progress-bar">0%</div>
+                            </div>
+                            <h4><?php _e('📋 Activity Log:', 'mm-web-monitoring'); ?></h4>
+                            <div id="mmwm-bulk-log"></div>
+                        </div>
+                    </div>
                 </div>
-                <h4><?php _e('Log:', 'mm-web-monitoring'); ?></h4>
-                <div id="mmwm-bulk-log"></div>
             </div>
         </div>
     <?php
@@ -301,7 +1025,8 @@ class MMWM_Admin
                         echo '<span style="color: #777;">Not Checked</span>';
                     }
                 } else {
-                    echo '<span style="color: #999;">Disabled</span>';
+                    echo '<span style="color: #999;">Disabled</span><br>';
+                    echo '<small style="color: #666; font-style: italic;">Activate domain expiry check from website management</small>';
                 }
                 break;
             case 'last_check':
@@ -315,12 +1040,19 @@ class MMWM_Admin
                     break;
                 }
                 $scheduler = new MMWM_Scheduler();
-                $next_check_timestamp = $scheduler->get_next_check_timestamp($post_id);
+                $next_check_timestamp = $scheduler->get_next_check_time($post_id);
 
                 if ($next_check_timestamp) {
-                    echo '<span class="mmwm-next-check-countdown" data-timestamp="' . esc_attr($next_check_timestamp) . '" data-postid="' . esc_attr($post_id) . '">';
-                    echo esc_html($scheduler->get_next_check_display($post_id));
-                    echo '</span>';
+                    $time_diff = $next_check_timestamp - time();
+                    if ($time_diff <= 0) {
+                        echo '<span class="mmwm-next-check">Due now</span>';
+                    } else {
+                        $minutes = floor($time_diff / 60);
+                        $seconds = $time_diff % 60;
+                        echo '<span class="mmwm-next-check-countdown" data-timestamp="' . esc_attr($next_check_timestamp) . '" data-postid="' . esc_attr($post_id) . '">';
+                        echo esc_html($minutes . 'm ' . $seconds . 's');
+                        echo '</span>';
+                    }
                 } else {
                     echo '<span class="mmwm-next-check">Soon</span>';
                 }
@@ -558,11 +1290,19 @@ class MMWM_Admin
                             editor;
 
                         if (type === 'interval') {
-                            var intervals = [5, 10, 15, 20, 25, 30, 45, 60];
+                            var intervals = {
+                                '5min': '5 min',
+                                '15min': '15 min',
+                                '30min': '30 min',
+                                '1hour': '1 hour',
+                                '6hour': '6 hours',
+                                '12hour': '12 hours',
+                                '24hour': '24 hours'
+                            };
                             editor = $('<select>');
-                            intervals.forEach(function(val) {
-                                editor.append($('<option>').val(val).text(val + ' min').prop('selected', val === parseInt(currentVal)));
-                            });
+                            for (var key in intervals) {
+                                editor.append($('<option>').val(key).text(intervals[key]).prop('selected', intervals[key] === currentVal));
+                            }
                         } else if (type === 'notification_trigger') {
                             editor = $('<select>');
                             editor.append($('<option>').val('always').text('Always').prop('selected', currentVal === 'Always'));
@@ -579,7 +1319,18 @@ class MMWM_Admin
 
                             var newVal = $(this).val();
                             var displayVal = newVal;
-                            if (type === 'interval') displayVal += ' min';
+                            if (type === 'interval') {
+                                var intervalMap = {
+                                    '5min': '5 min',
+                                    '15min': '15 min',
+                                    '30min': '30 min',
+                                    '1hour': '1 hour',
+                                    '6hour': '6 hours',
+                                    '12hour': '12 hours',
+                                    '24hour': '24 hours'
+                                };
+                                displayVal = intervalMap[newVal] || '15 min';
+                            }
                             if (type === 'notification_trigger') displayVal = newVal === 'always' ? 'Always' : 'On Error & Recovery';
 
                             span.text(displayVal || (type === 'host_in' ? 'Belum diisi' : ''));

@@ -18,20 +18,13 @@ interface MMWM_Scheduler_Interface
     public function schedule_checks();
 
     /**
-     * Get websites that need to be checked
-     *
-     * @return array Array of website post IDs
-     */
-    public function get_websites_to_check();
-
-    /**
      * Calculate next check time for a website
      *
      * @param int $post_id Website post ID
-     * @param int $interval Interval in minutes
+     * @param string $interval_string Interval string like '15min'
      * @return int Timestamp of next check
      */
-    public function calculate_next_check($post_id, $interval);
+    public function calculate_next_check($post_id, $interval_string);
 
     /**
      * Check if a website is due for checking
