@@ -1475,10 +1475,19 @@ class MMWM_Admin
     {
         check_ajax_referer('mmwm_ajax_nonce');
         if (current_user_can('edit_posts') && isset($_POST['post_id']) && isset($_POST['new_value'])) {
-            update_post_meta(intval($_POST['post_id']), '_mmwm_interval', intval($_POST['new_value']));
-            wp_send_json_success();
+            $post_id = intval($_POST['post_id']);
+            $new_interval = sanitize_text_field($_POST['new_value']);
+
+            // Validate interval value
+            $valid_intervals = ['1min', '3min', '5min', '7min', '10min', '15min', '25min', '30min', '45min', '60min', '1hour', '6hour', '12hour', '24hour'];
+            if (in_array($new_interval, $valid_intervals)) {
+                update_post_meta($post_id, '_mmwm_monitoring_interval', $new_interval);
+                wp_send_json_success(['message' => 'Interval updated successfully']);
+            } else {
+                wp_send_json_error(['message' => 'Invalid interval value']);
+            }
         }
-        wp_send_json_error();
+        wp_send_json_error(['message' => 'Missing required parameters']);
     }
 
     public function handle_ajax_update_host_in()
