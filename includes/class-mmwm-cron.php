@@ -339,7 +339,8 @@ class MMWM_Cron
             $email_to = get_option('mmwm_default_email', get_option('admin_email'));
         }
 
-        $subject = "🌐 Domain Registration Expiring Soon: {$title}";
+        $domain = parse_url(get_post_meta($post_id, '_mmwm_target_url', true), PHP_URL_HOST);
+        $subject = "MW-DOMAIN-EXP-{$domain}";
 
         // Use unified email template
         $email_data = [
@@ -464,7 +465,15 @@ class MMWM_Cron
 
         $host_in = get_post_meta($post_id, '_mmwm_host_in', true) ?: 'Not specified';
 
-        $subject = sprintf('🔍 Monitoring Report for %s: %s', get_the_title($post_id), $new_status);
+        $domain = parse_url($url, PHP_URL_HOST);
+        
+        if ($new_status === 'UP') {
+            $subject = sprintf('MW-UP-%s', $domain);
+        } elseif ($new_status === 'DOWN') {
+            $subject = sprintf('MW-Down-%s', $domain);
+        } else {
+            $subject = sprintf('MW-%s-%s', $new_status, $domain);
+        }
 
         // Use unified email template
         $email_data = [

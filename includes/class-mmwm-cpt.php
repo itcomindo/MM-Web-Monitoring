@@ -1118,7 +1118,8 @@ class MMWM_CPT
             $email_to = get_option('mmwm_default_email', get_option('admin_email'));
         }
 
-        $subject = "🌐 Domain Registration Expiring Soon: {$title}";
+        $domain = $domain_result['root_domain'];
+        $subject = "MW-DOMAIN-EXP-{$domain}";
 
         // Use unified email template
         $email_data = [

@@ -102,8 +102,17 @@ class MMWM_Notifier implements MMWM_Notifier_Interface
      */
     private function build_email_subject($website_title, $status)
     {
-        $status_emoji = $this->get_status_emoji($status);
-        return sprintf('%s Monitoring Alert: %s - %s', $status_emoji, $website_title, $status);
+        // Extract domain from website title or use the title if extraction fails
+        $domain_parts = explode(' - ', $website_title);
+        $domain = count($domain_parts) > 1 ? $domain_parts[1] : $website_title;
+        
+        if ($status === 'UP') {
+            return sprintf('MW-UP-%s', $domain);
+        } elseif ($status === 'DOWN') {
+            return sprintf('MW-Down-%s', $domain);
+        } else {
+            return sprintf('MW-%s-%s', $status, $domain);
+        }
     }
 
     /**

@@ -174,7 +174,8 @@ class MMWM_Checker implements MMWM_Checker_Interface
         $days_left = $ssl_result['days_until_expiry'];
         $expiry_date = $ssl_result['expiry_date'];
 
-        $subject = "🔒 SSL Certificate Expiring Soon: {$title}";
+        $domain = parse_url($url, PHP_URL_HOST);
+        $subject = "MW-SSL-EXP-{$domain}";
 
         // Use unified email template
         $email_data = [
