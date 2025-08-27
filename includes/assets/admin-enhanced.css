@@ -46,10 +46,15 @@
   float: none;
   margin-right: 6px;
   max-width: 200px;
+  position: relative;
+  z-index: 100;
 }
 
 .tablenav .actions {
   overflow: visible;
+  position: relative;
+  z-index: 100;
+  display: inline-block;
 }
 
 #mmwm-bulk-check-log p {

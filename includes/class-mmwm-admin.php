@@ -929,21 +929,46 @@ class MMWM_Admin
      */
     public function add_bulk_actions($bulk_actions)
     {
-        // Removed all bulk actions as they were not working properly
-        // Will be reimplemented in a future version
+        // Add custom bulk actions
+        $bulk_actions['mmwm_bulk_check_now'] = __('Bulk Check Now', 'mm-web-monitoring');
+        $bulk_actions['mmwm_bulk_stop'] = __('Bulk Stop', 'mm-web-monitoring');
+        $bulk_actions['mmwm_bulk_pause'] = __('Bulk Pause', 'mm-web-monitoring');
+        $bulk_actions['mmwm_bulk_start'] = __('Bulk Start', 'mm-web-monitoring');
+        
         return $bulk_actions;
     }
 
     /**
      * Handle custom bulk actions
-     * 
-     * Note: All bulk actions have been removed in v1.1.1 as they were not working properly
-     * This function is kept for backward compatibility and will be reimplemented in a future version
      */
     public function handle_bulk_actions($redirect_to, $doaction, $post_ids)
     {
-        // All bulk actions have been removed in v1.1.1
-        // This function is kept for backward compatibility
+        if (!in_array($doaction, ['mmwm_bulk_check_now', 'mmwm_bulk_stop', 'mmwm_bulk_pause', 'mmwm_bulk_start'])) {
+            return $redirect_to;
+        }
+
+        $processed = 0;
+        $cron_handler = new MMWM_Cron();
+
+        foreach ($post_ids as $post_id) {
+            switch ($doaction) {
+                case 'mmwm_bulk_check_now':
+                    $cron_handler->perform_check($post_id);
+                    break;
+                case 'mmwm_bulk_stop':
+                    update_post_meta($post_id, '_mmwm_monitoring_status', 'stopped');
+                    break;
+                case 'mmwm_bulk_pause':
+                    update_post_meta($post_id, '_mmwm_monitoring_status', 'paused');
+                    break;
+                case 'mmwm_bulk_start':
+                    update_post_meta($post_id, '_mmwm_monitoring_status', 'active');
+                    break;
+            }
+            $processed++;
+        }
+
+        $redirect_to = add_query_arg('mmwm_processed', $processed, $redirect_to);
         return $redirect_to;
     }
 
@@ -1265,17 +1290,9 @@ class MMWM_Admin
         <div id="mmwm-notification" class="mmwm-notification"></div>
 
         <?php if ($current_screen->id === 'edit-mmwm_website') : ?>
+            <!-- Tombol bulk actions (Bulk Check Now, Bulk Start, Bulk Pause) telah dihapus di v1.1.1 karena tidak berfungsi dengan baik -->
             <script type="text/template" id="tmpl-bulk-actions-template">
-                <div id="mmwm-bulk-controls" style="margin: 10px 0;">
-                    <button class="button" id="mmwm-bulk-check-now">Bulk Check Now</button>
-                    <button class="button" id="mmwm-bulk-start">Bulk Start</button>
-                    <button class="button" id="mmwm-bulk-pause">Bulk Pause</button>
-                    <span id="mmwm-bulk-spinner" class="spinner" style="float: none; vertical-align: middle;"></span>
-                </div>
-                 <div id="mmwm-bulk-progress-wrapper" style="display:none;">
-                    <div id="mmwm-progress-bar-container" style="background-color: #ddd; border-radius: 5px; padding: 3px; margin-top: 10px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);"><div id="mmwm-progress-bar">0%</div></div>
-                    <div id="mmwm-bulk-log" style="height: 150px;"></div>
-                </div>
+                <!-- Tombol bulk actions akan diimplementasikan ulang di versi mendatang -->
             </script>
             <script type="text/javascript">
                 jQuery(document).ready(function($) {
@@ -1439,9 +1456,7 @@ class MMWM_Admin
                         });
                     });
 
-                    $('#mmwm-bulk-controls button').on('click', function() {
-                        /* ... kode sama dari versi sebelumnya ... */
-                    });
+                    // Event handler untuk tombol bulk actions telah dihapus di v1.1.1 karena tidak berfungsi dengan baik
                 });
             </script>
         <?php endif;
