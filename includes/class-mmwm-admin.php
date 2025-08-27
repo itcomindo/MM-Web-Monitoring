@@ -1378,8 +1378,29 @@ class MMWM_Admin
                             postData.action = 'mmwm_update_' + type;
 
                             $.post(ajaxurl, postData)
-                                .done(function() {
+                                .done(function(response) {
                                     showNotification(type.replace(/_/g, ' ') + ' updated!');
+
+                                    // Special handling for interval updates - update Next Check column
+                                    if (type === 'interval' && response.data && response.data.next_check_display) {
+                                        var row = span.closest('tr');
+                                        var nextCheckCell = row.find('td').eq(6); // Next Check is 7th column (0-indexed: 6)
+                                        var nextCheckSpan = nextCheckCell.find('.mmwm-next-check, .mmwm-next-check-countdown');
+
+                                        if (response.data.next_check_display === 'Due now') {
+                                            nextCheckSpan.removeClass('mmwm-next-check-countdown').addClass('mmwm-next-check');
+                                            nextCheckSpan.text('Due now');
+                                            nextCheckSpan.removeAttr('data-timestamp data-postid');
+                                        } else {
+                                            nextCheckSpan.removeClass('mmwm-next-check').addClass('mmwm-next-check-countdown');
+                                            nextCheckSpan.text(response.data.next_check_display);
+                                            nextCheckSpan.attr('data-timestamp', response.data.next_check_timestamp);
+                                            nextCheckSpan.attr('data-postid', postId);
+                                        }
+
+                                        // Show additional success message for interval
+                                        showNotification('Next check updated to: ' + response.data.next_check_display);
+                                    }
                                 })
                                 .fail(function() {
                                     showNotification('Failed to update ' + type, true);
@@ -1481,8 +1502,46 @@ class MMWM_Admin
             // Validate interval value
             $valid_intervals = ['1min', '3min', '5min', '7min', '10min', '15min', '25min', '30min', '45min', '60min', '1hour', '6hour', '12hour', '24hour'];
             if (in_array($new_interval, $valid_intervals)) {
+                // Update interval
                 update_post_meta($post_id, '_mmwm_monitoring_interval', $new_interval);
-                wp_send_json_success(['message' => 'Interval updated successfully']);
+
+                // Recalculate next check time based on new interval
+                $current_time = time();
+                $last_check = get_post_meta($post_id, '_mmwm_last_check', true);
+
+                // If no last check, use current time as base
+                if (!$last_check) {
+                    $last_check = $current_time;
+                    update_post_meta($post_id, '_mmwm_last_check', $last_check);
+                }
+
+                // Calculate next check using scheduler
+                if (class_exists('MMWM_Scheduler')) {
+                    $scheduler = new MMWM_Scheduler();
+                    $next_check_timestamp = $scheduler->get_next_check_time($post_id);
+
+                    // Calculate time difference for UI display
+                    $time_diff = $next_check_timestamp - $current_time;
+                    $next_check_display = '';
+
+                    if ($time_diff <= 0) {
+                        $next_check_display = 'Due now';
+                    } else {
+                        $minutes = floor($time_diff / 60);
+                        $seconds = $time_diff % 60;
+                        $next_check_display = $minutes . 'm ' . $seconds . 's';
+                    }
+
+                    // Return success with updated next check info
+                    wp_send_json_success([
+                        'message' => 'Interval updated successfully',
+                        'next_check_display' => $next_check_display,
+                        'next_check_timestamp' => $next_check_timestamp,
+                        'interval' => $new_interval
+                    ]);
+                } else {
+                    wp_send_json_success(['message' => 'Interval updated successfully']);
+                }
             } else {
                 wp_send_json_error(['message' => 'Invalid interval value']);
             }
