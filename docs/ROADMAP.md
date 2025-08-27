@@ -8,7 +8,7 @@ Dokumen ini berisi rencana pengembangan fitur untuk plugin MM Web Monitoring di 
 
 ### Fase 1: Pengumpulan Data Dasar (Target: v1.2.0)
 
-1. **Metrik Dasar Server**
+1. **Metrik Dasar Server**k
    - CPU Usage
    - Memory Usage
    - Disk Space
