@@ -515,6 +515,37 @@ class MMWM_Cron
         }
         wp_send_json_error(['message' => 'Invalid Post ID.']);
     }
+    
+    /**
+     * Handle silent check for a website
+     * Used when plugin is reactivated or server comes back online
+     * 
+     * @param int $post_id The website post ID
+     * @since 1.1.1
+     */
+    public function handle_silent_check($post_id)
+    {
+        // Verify post exists and is the correct type
+        $post = get_post($post_id);
+        if (!$post || $post->post_type !== 'mmwm_website') {
+            return;
+        }
+        
+        // Verify monitoring is active
+        $monitoring_status = get_post_meta($post_id, '_mmwm_monitoring_status', true);
+        if ($monitoring_status !== 'active') {
+            return;
+        }
+        
+        // Perform the check silently
+        $this->perform_check($post_id);
+        
+        // Log the silent check
+        update_post_meta($post_id, '_mmwm_silent_check_log', sprintf(
+            'Silent check performed at %s due to plugin reactivation or server restart', 
+            date('Y-m-d H:i:s')
+        ));
+    }
 
     public function handle_ajax_update_monitoring_status()
     {

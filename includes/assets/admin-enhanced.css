@@ -41,6 +41,17 @@
   margin-top: 10px;
 }
 
+/* Fix for bulk actions dropdown */
+.tablenav .actions select {
+  float: none;
+  margin-right: 6px;
+  max-width: 200px;
+}
+
+.tablenav .actions {
+  overflow: visible;
+}
+
 #mmwm-bulk-check-log p {
   margin: 5px 0;
   padding: 2px 0;

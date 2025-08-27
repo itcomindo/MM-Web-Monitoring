@@ -30,6 +30,9 @@ class MMWM_Activator
 
         // Set default options
         self::set_default_options();
+        
+        // Run silent monitoring for all active websites
+        self::run_silent_monitoring();
 
         // Log activation
         error_log('MMWM Plugin activated successfully');
@@ -92,6 +95,53 @@ class MMWM_Activator
         }
     }
 
+    /**
+     * Run silent monitoring for all active websites
+     * 
+     * @since 1.1.1
+     */
+    public static function run_silent_monitoring()
+    {
+        // Get all websites with monitoring enabled and due for check
+        $websites = get_posts(array(
+            'post_type' => 'mmwm_website',
+            'posts_per_page' => -1,
+            'meta_query' => array(
+                array(
+                    'key' => '_mmwm_monitoring_status',
+                    'value' => 'active',
+                    'compare' => '='
+                )
+            )
+        ));
+
+        if (empty($websites)) {
+            return;
+        }
+
+        // Load the cron class to perform checks
+        require_once MMWM_PLUGIN_DIR . 'includes/class-mmwm-cron.php';
+        $cron = new MMWM_Cron();
+
+        // Process websites sequentially with small delays
+        foreach ($websites as $index => $website) {
+            // Check if the website is due for check
+            $last_check = get_post_meta($website->ID, '_mmwm_last_check', true);
+            $check_interval = get_post_meta($website->ID, '_mmwm_check_interval', true) ?: 5;
+            $check_interval_seconds = $check_interval * 60;
+            
+            // If no last check or check is due
+            if (empty($last_check) || (time() - $last_check) > $check_interval_seconds) {
+                // Schedule each check with progressive delay to avoid server overload
+                $delay = $index * 5; // 5 seconds between each check
+                wp_schedule_single_event(time() + $delay, 'mmwm_silent_check', array($website->ID));
+            }
+        }
+        
+        // Log silent monitoring initiation
+        error_log('MMWM Silent monitoring initiated for due websites');
+    }
+    
     /**
      * Check if plugin needs upgrade
      *

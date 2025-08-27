@@ -929,47 +929,21 @@ class MMWM_Admin
      */
     public function add_bulk_actions($bulk_actions)
     {
-        $bulk_actions['mmwm_check_now'] = __('Check Now', 'mm-web-monitoring');
-        $bulk_actions['mmwm_start_monitoring'] = __('Start Monitoring', 'mm-web-monitoring');
-        $bulk_actions['mmwm_pause_monitoring'] = __('Pause Monitoring', 'mm-web-monitoring');
-        $bulk_actions['mmwm_stop_monitoring'] = __('Stop Monitoring', 'mm-web-monitoring');
+        // Removed all bulk actions as they were not working properly
+        // Will be reimplemented in a future version
         return $bulk_actions;
     }
 
     /**
      * Handle custom bulk actions
+     * 
+     * Note: All bulk actions have been removed in v1.1.1 as they were not working properly
+     * This function is kept for backward compatibility and will be reimplemented in a future version
      */
     public function handle_bulk_actions($redirect_to, $doaction, $post_ids)
     {
-        if (!in_array($doaction, ['mmwm_check_now', 'mmwm_start_monitoring', 'mmwm_pause_monitoring', 'mmwm_stop_monitoring'])) {
-            return $redirect_to;
-        }
-
-        $processed = 0;
-        $cron = new MMWM_Cron();
-
-        foreach ($post_ids as $post_id) {
-            switch ($doaction) {
-                case 'mmwm_check_now':
-                    $cron->perform_check($post_id);
-                    $processed++;
-                    break;
-                case 'mmwm_start_monitoring':
-                    update_post_meta($post_id, '_mmwm_monitoring_status', 'active');
-                    $processed++;
-                    break;
-                case 'mmwm_pause_monitoring':
-                    update_post_meta($post_id, '_mmwm_monitoring_status', 'paused');
-                    $processed++;
-                    break;
-                case 'mmwm_stop_monitoring':
-                    update_post_meta($post_id, '_mmwm_monitoring_status', 'stopped');
-                    $processed++;
-                    break;
-            }
-        }
-
-        $redirect_to = add_query_arg('mmwm_processed', $processed, $redirect_to);
+        // All bulk actions have been removed in v1.1.1
+        // This function is kept for backward compatibility
         return $redirect_to;
     }
 

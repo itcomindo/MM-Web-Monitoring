@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.1] - 2024-06-26
+
+### 🐛 **Fixed**
+- **BUGFIX**: Implementasi silent monitoring saat plugin diaktifkan kembali atau server up kembali
+- **BUGFIX**: Menghapus tombol bulk actions yang tidak berfungsi dengan baik
+- **BUGFIX**: Memperbaiki bug pada dropdown bulk actions di halaman all websites
+
+### ⚡ **Improved**
+- **ENHANCEMENT**: Peningkatan stabilitas plugin secara keseluruhan
+
+Lihat detail lengkap di [CHANGELOG-v1.1.1.md](CHANGELOG-v1.1.1.md)
+
+---
+
 ## [1.0.9] - 2025-09-05
 
 ### ✨ **Added**
