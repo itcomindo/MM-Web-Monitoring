@@ -124,7 +124,7 @@ class MMWM_Admin
     public function render_global_options_page()
     {
         // Enqueue modern styles and scripts
-        wp_enqueue_script('mmwm-admin-modern', plugin_dir_url(__FILE__) . '../assets/admin-modern.js', array('jquery'), '1.0.8', true);
+        wp_enqueue_script('mmwm-admin-modern', plugin_dir_url(__FILE__) . '../assets/admin-modern.js', array('jquery'), '1.0.9', true);
         wp_localize_script('mmwm-admin-modern', 'mmwm_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('mmwm_admin_nonce')
@@ -288,7 +288,7 @@ class MMWM_Admin
         </style>
 
         <div class="wrap">
-            <h1><?php _e('🌐 Web Monitoring Global Options v1.0.8', 'mm-web-monitoring'); ?></h1>
+            <h1><?php _e('🌐 Web Monitoring Global Options v1.0.9', 'mm-web-monitoring'); ?></h1>
 
             <div class="mmwm-modern-container">
 
@@ -666,7 +666,7 @@ class MMWM_Admin
 
         // Create user agent string that's safe for wp-config.php (no WordPress functions)
         // Use a static version string since wp-config.php loads before WordPress core
-        $user_agent_define = "define('MMWM_USER_AGENT', 'MM-Web-Monitoring/1.0.8');";
+        $user_agent_define = "define('MMWM_USER_AGENT', 'MM-Web-Monitoring/1.0.9');";
         $user_agent_pattern = "/\/\/\s*MM Web Monitoring Custom User Agent\s*\n.*?define\s*\(\s*['\"]MMWM_USER_AGENT['\"]\s*,.*?\)\s*;\s*\n?/s";
         $simple_pattern = "/define\s*\(\s*['\"]MMWM_USER_AGENT['\"]\s*,.*?\)\s*;/";
 

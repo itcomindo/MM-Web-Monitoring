@@ -3,7 +3,7 @@
 /**
  * Plugin Name:       MM Web Monitoring
  * Description:       A simple plugin to monitor website performance and uptime.
- * Version:           1.0.8
+ * Version:           1.1.0
  * Author:            Budi Haryono
  * Author URI:        https://budiharyono.id/
  * License:           GPL2 or later
@@ -21,7 +21,7 @@ if (! defined('ABSPATH')) {
 }
 
 // Define constants
-define('MMWM_VERSION', '1.0.8');
+define('MMWM_VERSION', '1.1.0');
 define('MMWM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('MMWM_PLUGIN_URL', plugin_dir_url(__FILE__));
 

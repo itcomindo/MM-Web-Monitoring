@@ -168,7 +168,7 @@ class MMWM_WP_Compat
             CURLOPT_TIMEOUT => $args['timeout'] ?? 30,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_SSL_VERIFYPEER => $args['sslverify'] ?? false,
-            CURLOPT_USERAGENT => $args['user-agent'] ?? (defined('MMWM_USER_AGENT') ? MMWM_USER_AGENT : 'MM-Web-Monitoring/1.0.8'),
+            CURLOPT_USERAGENT => $args['user-agent'] ?? (defined('MMWM_USER_AGENT') ? MMWM_USER_AGENT : 'MM-Web-Monitoring/1.0.9'),
             CURLOPT_HEADER => true,
         ]);
 

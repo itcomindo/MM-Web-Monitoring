@@ -590,9 +590,18 @@ class MMWM_Cron
             // Save error and request manual input
             update_post_meta($post_id, '_mmwm_domain_error', $result['error']);
             
+            // Extract root domain for WHOIS link
+            $root_domain = isset($result['root_domain']) ? $result['root_domain'] : parse_url($url, PHP_URL_HOST);
+            $root_domain = preg_replace('/^www\./', '', $root_domain); // Remove www if present
+            
+            // Generate WHOIS link
+            $whois_link = 'https://www.whois.com/whois/' . $root_domain;
+            
             wp_send_json_success([
                 'message' => __('Could not automatically detect domain expiry date. Please enter it manually.', 'mm-web-monitoring'),
-                'need_manual_input' => true
+                'need_manual_input' => true,
+                'whois_link' => $whois_link,
+                'root_domain' => $root_domain
             ]);
         }
     }

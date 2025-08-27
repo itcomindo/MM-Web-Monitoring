@@ -97,7 +97,30 @@ class MMWM_CPT
                             
                             // If manual input is needed, show the date picker
                             if (response.data.need_manual_input) {
-                                $('.mmwm-domain-check-failed').show();
+                                // Tampilkan pesan error dan form input manual
+                                var errorDiv = $('<div class="mmwm-domain-check-failed" style="margin-top: 10px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">' +
+                                    '<strong style="color: #856404;"><?php _e("⚠️ Domain Check Failed", "mm-web-monitoring"); ?></strong><br>' +
+                                    '<p style="margin: 5px 0; color: #856404;">' + response.data.message + '</p>');
+                                
+                                // Tambahkan link WHOIS jika tersedia
+                                if (response.data.whois_link && response.data.root_domain) {
+                                    errorDiv.append('<p style="margin: 5px 0; color: #856404;"><a href="' + response.data.whois_link + '" target="_blank" style="color: #0073aa;"><?php _e("Check WHOIS information for", "mm-web-monitoring"); ?> ' + response.data.root_domain + ' &raquo;</a></p>');
+                                }
+                                
+                                errorDiv.append('<p style="margin: 5px 0; color: #856404;"><?php _e("Please enter the domain expiry date manually below:", "mm-web-monitoring"); ?></p>' +
+                                    '<div style="margin-top: 10px;">' +
+                                    '<label for="mmwm_manual_domain_expiry"><strong><?php _e("Manual Domain Expiry Date:", "mm-web-monitoring"); ?></strong></label><br>' +
+                                    '<input type="date" name="mmwm_manual_domain_expiry" id="mmwm_manual_domain_expiry" value="" min="<?php echo date("Y-m-d"); ?>" style="width: 200px; padding: 5px; margin-top: 5px;">' +
+                                    '<p class="description"><?php _e("Enter when this domain registration will expire.", "mm-web-monitoring"); ?></p>' +
+                                    '</div>');
+                                
+                                // Tampilkan di container yang sudah ada
+                                $('#mmwm-domain-check-failed-container').html(errorDiv);
+                                
+                                // Jika container tidak ada, tambahkan setelah tombol
+                                if ($('#mmwm-domain-check-failed-container').length === 0) {
+                                    button.after(errorDiv);
+                                }
                             } else {
                                 // Update expiry date display
                                 if (response.data.expiry_date) {
@@ -355,29 +378,168 @@ class MMWM_CPT
                         <?php if (empty($domain_last_check) && empty($domain_monitoring_status)): ?>
                             <div style="margin-top: 15px;">
                                 <button type="button" class="button button-primary" id="mmwm-enable-domain-monitoring">
-                                    <?php _e('Click Enable Domain Expiry Monitoring', 'mm-web-monitoring'); ?>
+                                    <?php
+                                // Ambil informasi SSL
+                                $ssl_is_active = get_post_meta($post->ID, '_mmwm_ssl_is_active', true);
+                                $ssl_error = get_post_meta($post->ID, '_mmwm_ssl_error', true);
+                                $ssl_expiry_date = get_post_meta($post->ID, '_mmwm_ssl_expiry_date', true);
+                                $ssl_days_until_expiry = get_post_meta($post->ID, '_mmwm_ssl_days_until_expiry', true);
+                                $ssl_issuer = get_post_meta($post->ID, '_mmwm_ssl_issuer', true);
+                                $ssl_last_check = get_post_meta($post->ID, '_mmwm_ssl_last_check', true);
+                                
+                                _e('Click Enable Domain Expiry Monitoring', 'mm-web-monitoring'); ?>
                                 </button>
                                 <span class="spinner" style="float:none;"></span>
                             </div>
                         <?php endif; ?>
 
-                        <?php if ($domain_error && !$manual_override): ?>
-                            <div style="margin-top: 10px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
-                                <strong style="color: #856404;"><?php _e('⚠️ Domain Check Failed', 'mm-web-monitoring'); ?></strong><br>
-                                <p style="margin: 5px 0; color: #856404;"><?php echo esc_html($domain_error); ?></p>
-                                <p style="margin: 5px 0; color: #856404;"><?php _e('Please enter the domain expiry date manually below:', 'mm-web-monitoring'); ?></p>
-
-                                <div style="margin-top: 10px;">
-                                    <label for="mmwm_manual_domain_expiry"><strong><?php _e('Manual Domain Expiry Date:', 'mm-web-monitoring'); ?></strong></label><br>
-                                    <input type="date"
-                                        name="mmwm_manual_domain_expiry"
-                                        id="mmwm_manual_domain_expiry"
-                                        value="<?php echo esc_attr($domain_expiry_date); ?>"
-                                        min="<?php echo date('Y-m-d'); ?>"
-                                        style="width: 200px; padding: 5px; margin-top: 5px;">
-                                    <p class="description"><?php _e('Enter when this domain registration will expire.', 'mm-web-monitoring'); ?></p>
+                        <?php
+                        // Tampilkan informasi SSL jika URL menggunakan HTTPS
+                        $url = get_post_meta($post->ID, '_mmwm_target_url', true);
+                        if (strpos($url, 'https://') === 0) :
+                            $ssl_is_active = get_post_meta($post->ID, '_mmwm_ssl_is_active', true);
+                            $ssl_error = get_post_meta($post->ID, '_mmwm_ssl_error', true);
+                            $ssl_expiry_date = get_post_meta($post->ID, '_mmwm_ssl_expiry_date', true);
+                            $ssl_days_until_expiry = get_post_meta($post->ID, '_mmwm_ssl_days_until_expiry', true);
+                            $ssl_issuer = get_post_meta($post->ID, '_mmwm_ssl_issuer', true);
+                            $ssl_last_check = get_post_meta($post->ID, '_mmwm_ssl_last_check', true);
+                        ?>
+                            <?php
+                                // Tentukan warna dan ikon berdasarkan status SSL
+                                $border_color = '#dc3545'; // Default merah untuk error
+                                $status_color = '#dc3545';
+                                $status_icon = '❌';
+                                $status_text = __('Invalid or Expired', 'mm-web-monitoring');
+                                
+                                if ($ssl_is_active == '1') {
+                                    if ($ssl_days_until_expiry < 0) {
+                                        // SSL sudah kedaluwarsa
+                                        $border_color = '#dc3545';
+                                        $status_color = '#dc3545';
+                                        $status_icon = '❌';
+                                        $status_text = __('Expired', 'mm-web-monitoring');
+                                    } elseif ($ssl_days_until_expiry <= 10) {
+                                        // SSL akan kedaluwarsa dalam 10 hari
+                                        $border_color = '#ffc107';
+                                        $status_color = '#ffc107';
+                                        $status_icon = '⚠️';
+                                        $status_text = __('Valid but expiring soon', 'mm-web-monitoring');
+                                    } elseif ($ssl_days_until_expiry <= 30) {
+                                        // SSL akan kedaluwarsa dalam 30 hari
+                                        $border_color = '#17a2b8';
+                                        $status_color = '#17a2b8';
+                                        $status_icon = 'ℹ️';
+                                        $status_text = __('Valid but expiring in a month', 'mm-web-monitoring');
+                                    } else {
+                                        // SSL valid dan masih lama
+                                        $border_color = '#28a745';
+                                        $status_color = '#28a745';
+                                        $status_icon = '✅';
+                                        $status_text = __('Valid', 'mm-web-monitoring');
+                                    }
+                                }
+                            ?>
+                            <div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 4px solid <?php echo $border_color; ?>; border-radius: 4px;">
+                                <h4 style="margin-top: 0; margin-bottom: 10px;"><?php _e('SSL Certificate Information:', 'mm-web-monitoring'); ?></h4>
+                                
+                                <?php if ($ssl_is_active == '1') : ?>
+                                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                                        <strong style="min-width: 120px;"><?php _e('Status:', 'mm-web-monitoring'); ?></strong> 
+                                        <span style="color: <?php echo $status_color; ?>; font-weight: bold; display: flex; align-items: center;">
+                                            <span style="margin-right: 5px;"><?php echo $status_icon; ?></span>
+                                            <?php echo $status_text; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <div style="display: flex; margin-bottom: 8px;">
+                                        <strong style="min-width: 120px;"><?php _e('Expires:', 'mm-web-monitoring'); ?></strong>
+                                        <?php echo esc_html($ssl_expiry_date); ?>
+                                    </div>
+                                    
+                                    <div style="display: flex; margin-bottom: 8px;">
+                                        <strong style="min-width: 120px;"><?php _e('Days remaining:', 'mm-web-monitoring'); ?></strong>
+                                        <span style="color: <?php echo $status_color; ?>; font-weight: bold;">
+                                            <?php echo esc_html($ssl_days_until_expiry); ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <?php if (!empty($ssl_issuer)) : ?>
+                                        <div style="display: flex; margin-bottom: 8px;">
+                                            <strong style="min-width: 120px;"><?php _e('Issuer:', 'mm-web-monitoring'); ?></strong>
+                                            <?php echo esc_html($ssl_issuer); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if ($ssl_days_until_expiry < 0) : ?>
+                                        <div style="margin-top: 10px; padding: 10px; background: #f8d7da; border-radius: 4px; color: #721c24;">
+                                            <strong><?php _e('Warning:', 'mm-web-monitoring'); ?></strong>
+                                            <?php _e('Your SSL certificate has expired. Visitors to your site will see security warnings. Renew your certificate immediately.', 'mm-web-monitoring'); ?>
+                                        </div>
+                                    <?php elseif ($ssl_days_until_expiry <= 10) : ?>
+                                        <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 4px; color: #856404;">
+                                            <strong><?php _e('Warning:', 'mm-web-monitoring'); ?></strong>
+                                            <?php printf(__('Your SSL certificate will expire in %d days. Plan to renew it soon to avoid security warnings.', 'mm-web-monitoring'), $ssl_days_until_expiry); ?>
+                                        </div>
+                                    <?php elseif ($ssl_days_until_expiry <= 30) : ?>
+                                        <div style="margin-top: 10px; padding: 10px; background: #d1ecf1; border-radius: 4px; color: #0c5460;">
+                                            <strong><?php _e('Notice:', 'mm-web-monitoring'); ?></strong>
+                                            <?php printf(__('Your SSL certificate will expire in %d days. Consider planning for renewal.', 'mm-web-monitoring'), $ssl_days_until_expiry); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                <?php else : ?>
+                                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                                        <strong style="min-width: 120px;"><?php _e('Status:', 'mm-web-monitoring'); ?></strong> 
+                                        <span style="color: #dc3545; font-weight: bold;">
+                                            ❌ <?php _e('Invalid or Expired', 'mm-web-monitoring'); ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <?php if (!empty($ssl_error)) : ?>
+                                        <div style="display: flex; margin-bottom: 8px;">
+                                            <strong style="min-width: 120px;"><?php _e('Error:', 'mm-web-monitoring'); ?></strong>
+                                            <?php echo esc_html($ssl_error); ?>
+                                        </div>
+                                        
+                                        <div style="margin-top: 10px; padding: 10px; background: #f8d7da; border-radius: 4px; color: #721c24;">
+                                            <strong><?php _e('Problem:', 'mm-web-monitoring'); ?></strong>
+                                            <?php 
+                                            // Cek jika error mengandung kode error tertentu dan tampilkan pesan yang sesuai
+                                            if (strpos($ssl_error, 'not HTTPS') !== false) {
+                                                _e('This URL is using HTTP protocol. SSL certificates are only available for HTTPS URLs.', 'mm-web-monitoring');
+                                            } elseif (strpos($ssl_error, 'Connection failed') !== false) {
+                                                _e('Could not connect to the server to check SSL certificate. The server might be down or blocking connections.', 'mm-web-monitoring');
+                                            } elseif (strpos($ssl_error, 'No SSL certificate found') !== false) {
+                                                _e('No valid SSL certificate was found on this server. The certificate might be misconfigured.', 'mm-web-monitoring');
+                                            } elseif (strpos($ssl_error, 'Failed to parse') !== false) {
+                                                _e('The SSL certificate was found but could not be processed. It might be corrupted or invalid.', 'mm-web-monitoring');
+                                            } else {
+                                                _e('There was a problem checking the SSL certificate. Try again later or contact your hosting provider.', 'mm-web-monitoring');
+                                            }
+                                            ?>
+                                        </div>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                                
+                                <?php if ($ssl_last_check) : ?>
+                                    <div style="display: flex; margin-top: 10px; font-size: 0.9em; color: #6c757d;">
+                                        <strong style="min-width: 120px;"><?php _e('Last checked:', 'mm-web-monitoring'); ?></strong>
+                                        <?php echo esc_html(wp_date('Y-m-d H:i:s', $ssl_last_check)); ?>
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <div style="margin-top: 10px; text-align: right;">
+                                    <button type="button" class="button" id="mmwm-check-ssl-now" data-post-id="<?php echo esc_attr($post->ID); ?>">
+                                        <?php _e('Check SSL Now', 'mm-web-monitoring'); ?>
+                                    </button>
+                                    <span class="spinner" style="float:none;"></span>
                                 </div>
                             </div>
+                        <?php endif; ?>
+
+                        <?php if ($domain_error && !$manual_override): ?>
+                            <!-- Elemen ini akan dibuat secara dinamis melalui JavaScript saat pemeriksaan domain gagal -->
+                            <div id="mmwm-domain-check-failed-container"></div>
                         <?php else: ?>
                             <div style="margin-top: 10px; padding: 10px; background: #f9f9f9; border-left: 4px solid #0073aa;">
                                 <strong><?php _e('Domain Information:', 'mm-web-monitoring'); ?></strong><br>
@@ -418,11 +580,19 @@ class MMWM_CPT
 
         <?php if ($post->ID) : ?>
             <div id="mmwm-action-buttons" style="margin-top: 15px;">
-                <button type="button" class="button button-primary" data-action="active" style="<?php echo ($monitoring_status !== 'active') ? '' : 'display:none;'; ?>">Start</button>
-                <button type="button" class="button" data-action="paused" style="<?php echo ($monitoring_status === 'active') ? '' : 'display:none;'; ?>">Pause</button>
-                <button type="button" class="button button-danger" data-action="stopped" style="<?php echo ($monitoring_status !== 'stopped') ? '' : 'display:none;'; ?>">Stop</button>
-                <button type="button" class="button button-secondary" id="mmwm-run-check-now">Check Now</button>
+                <button type="button" class="button button-primary" data-action="active" style="<?php echo ($monitoring_status !== 'active') ? '' : 'display:none;'; ?>" title="<?php _e('Start monitoring this website', 'mm-web-monitoring'); ?>">Start</button>
+                <button type="button" class="button" data-action="paused" style="<?php echo ($monitoring_status === 'active') ? '' : 'display:none;'; ?>" title="<?php _e('Temporarily pause monitoring', 'mm-web-monitoring'); ?>">Pause</button>
+                <button type="button" class="button button-danger" data-action="stopped" style="<?php echo ($monitoring_status !== 'stopped') ? '' : 'display:none;'; ?>" title="<?php _e('Stop monitoring completely', 'mm-web-monitoring'); ?>">Stop</button>
+                <button type="button" class="button button-secondary" id="mmwm-run-check-now" title="<?php _e('Run a check immediately', 'mm-web-monitoring'); ?>">Check Now</button>
                 <span class="spinner" style="float:none;"></span>
+            </div>
+            <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                <p class="description">
+                    <strong><?php _e('Start:', 'mm-web-monitoring'); ?></strong> <?php _e('Begin or resume monitoring this website', 'mm-web-monitoring'); ?><br>
+                    <strong><?php _e('Pause:', 'mm-web-monitoring'); ?></strong> <?php _e('Temporarily suspend monitoring without losing settings', 'mm-web-monitoring'); ?><br>
+                    <strong><?php _e('Stop:', 'mm-web-monitoring'); ?></strong> <?php _e('Completely stop monitoring this website', 'mm-web-monitoring'); ?><br>
+                    <strong><?php _e('Check Now:', 'mm-web-monitoring'); ?></strong> <?php _e('Run an immediate check regardless of schedule', 'mm-web-monitoring'); ?>
+                </p>
             </div>
         <?php endif; ?>
     <?php

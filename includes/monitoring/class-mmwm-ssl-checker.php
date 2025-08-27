@@ -18,10 +18,13 @@ class MMWM_SSL_Checker implements MMWM_SSL_Checker_Interface
         if (!$parsed_url || !isset($parsed_url['host'])) {
             return [
                 'is_active' => false,
-                'error' => 'Invalid URL',
+                'error' => 'Invalid URL: Format URL tidak valid atau tidak lengkap',
                 'expiry_date' => null,
                 'days_until_expiry' => null,
-                'issuer' => null
+                'issuer' => null,
+                'error_code' => 'invalid_url',
+                'error_details' => 'URL tidak dapat diproses karena format yang tidak valid. Pastikan URL dimulai dengan http:// atau https://',
+                'recommendation' => 'Periksa dan perbaiki format URL'
             ];
         }
 
@@ -32,10 +35,13 @@ class MMWM_SSL_Checker implements MMWM_SSL_Checker_Interface
         if (isset($parsed_url['scheme']) && $parsed_url['scheme'] !== 'https') {
             return [
                 'is_active' => false,
-                'error' => 'URL is not HTTPS',
+                'error' => 'URL is not HTTPS: Pemeriksaan SSL hanya untuk URL HTTPS',
                 'expiry_date' => null,
                 'days_until_expiry' => null,
-                'issuer' => null
+                'issuer' => null,
+                'error_code' => 'not_https',
+                'error_details' => 'Pemeriksaan sertifikat SSL hanya dapat dilakukan pada URL yang menggunakan protokol HTTPS',
+                'recommendation' => 'Gunakan URL dengan protokol HTTPS untuk memeriksa status SSL'
             ];
         }
 
@@ -64,7 +70,10 @@ class MMWM_SSL_Checker implements MMWM_SSL_Checker_Interface
                     'error' => "Connection failed: {$errstr}",
                     'expiry_date' => null,
                     'days_until_expiry' => null,
-                    'issuer' => null
+                    'issuer' => null,
+                    'error_code' => 'connection_failed',
+                    'error_details' => "Tidak dapat terhubung ke server untuk memeriksa sertifikat SSL. Error: {$errstr}",
+                    'recommendation' => 'Periksa apakah server aktif dan dapat diakses. Pastikan tidak ada firewall yang memblokir koneksi'
                 ];
             }
 
@@ -75,10 +84,13 @@ class MMWM_SSL_Checker implements MMWM_SSL_Checker_Interface
                 fclose($stream);
                 return [
                     'is_active' => false,
-                    'error' => 'No SSL certificate found',
+                    'error' => 'No SSL certificate found: Sertifikat SSL tidak ditemukan',
                     'expiry_date' => null,
                     'days_until_expiry' => null,
-                    'issuer' => null
+                    'issuer' => null,
+                    'error_code' => 'no_certificate',
+                    'error_details' => 'Server tidak mengembalikan sertifikat SSL yang valid saat diminta',
+                    'recommendation' => 'Periksa konfigurasi SSL pada server dan pastikan sertifikat terpasang dengan benar'
                 ];
             }
 
@@ -88,10 +100,13 @@ class MMWM_SSL_Checker implements MMWM_SSL_Checker_Interface
             if (!$cert_info) {
                 return [
                     'is_active' => false,
-                    'error' => 'Failed to parse SSL certificate',
+                    'error' => 'Failed to parse SSL certificate: Gagal memproses sertifikat SSL',
                     'expiry_date' => null,
                     'days_until_expiry' => null,
-                    'issuer' => null
+                    'issuer' => null,
+                    'error_code' => 'parse_failed',
+                    'error_details' => 'Sertifikat SSL ditemukan tetapi tidak dapat diproses atau formatnya tidak valid',
+                    'recommendation' => 'Periksa apakah sertifikat SSL valid dan sesuai standar. Mungkin perlu diperbarui atau diganti'
                 ];
             }
 
@@ -101,6 +116,29 @@ class MMWM_SSL_Checker implements MMWM_SSL_Checker_Interface
 
             $issuer = isset($cert_info['issuer']['CN']) ? $cert_info['issuer']['CN'] : (isset($cert_info['issuer']['O']) ? $cert_info['issuer']['O'] : 'Unknown');
 
+            // Tentukan status SSL berdasarkan hari yang tersisa
+            $is_expired = $days_until_expiry < 0;
+            $is_expiring_soon = $days_until_expiry <= 10 && $days_until_expiry > 0;
+            $is_expiring_warning = $days_until_expiry <= 30 && $days_until_expiry > 10;
+            
+            $status_message = null;
+            $status_code = 'valid';
+            $recommendation = null;
+            
+            if ($is_expired) {
+                $status_message = 'Sertifikat SSL telah kedaluwarsa';
+                $status_code = 'expired';
+                $recommendation = 'Segera perbarui sertifikat SSL Anda untuk menghindari peringatan keamanan pada browser pengunjung';
+            } elseif ($is_expiring_soon) {
+                $status_message = 'Sertifikat SSL akan segera kedaluwarsa dalam ' . $days_until_expiry . ' hari';
+                $status_code = 'expiring_soon';
+                $recommendation = 'Perbarui sertifikat SSL Anda dalam ' . $days_until_expiry . ' hari untuk menghindari gangguan layanan';
+            } elseif ($is_expiring_warning) {
+                $status_message = 'Sertifikat SSL akan kedaluwarsa dalam ' . $days_until_expiry . ' hari';
+                $status_code = 'expiring_warning';
+                $recommendation = 'Rencanakan pembaruan sertifikat SSL Anda dalam waktu dekat';
+            }
+            
             return [
                 'is_active' => true,
                 'error' => null,
@@ -108,16 +146,23 @@ class MMWM_SSL_Checker implements MMWM_SSL_Checker_Interface
                 'expiry_timestamp' => $expiry_timestamp,
                 'days_until_expiry' => $days_until_expiry,
                 'issuer' => $issuer,
-                'is_expired' => $days_until_expiry < 0,
-                'is_expiring_soon' => $days_until_expiry <= 10 && $days_until_expiry > 0
+                'is_expired' => $is_expired,
+                'is_expiring_soon' => $is_expiring_soon,
+                'is_expiring_warning' => $is_expiring_warning,
+                'status_message' => $status_message,
+                'status_code' => $status_code,
+                'recommendation' => $recommendation
             ];
         } catch (Exception $e) {
             return [
                 'is_active' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Exception: ' . $e->getMessage(),
                 'expiry_date' => null,
                 'days_until_expiry' => null,
-                'issuer' => null
+                'issuer' => null,
+                'error_code' => 'exception',
+                'error_details' => 'Terjadi kesalahan saat memeriksa sertifikat SSL: ' . $e->getMessage(),
+                'recommendation' => 'Coba lagi nanti atau periksa konfigurasi server Anda'
             ];
         }
     }

@@ -3,7 +3,7 @@
 <div align="center">
 
 [![WordPress Plugin](https://img.shields.io/badge/WordPress-Plugin-blue.svg)](https://wordpress.org/)
-[![Version](https://img.shields.io/badge/Version-1.0.8-green.svg)]()
+[![Version](https://img.shields.io/badge/Version-1.0.9-green.svg)]()
 [![License](https://img.shields.io/badge/License-GPL--2.0-orange.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-7.4%2B-purple.svg)]()
 
@@ -29,7 +29,7 @@ Imagine managing 50+ client websites when suddenly 5 websites go down simultaneo
 
 ---
 
-## ✨ **Fitur Unggulan v1.0.8**
+## ✨ **Fitur Unggulan v1.0.9**
 
 ### 🔍 **Website Monitoring**
 - **Smart Monitoring**: Response code check + HTML element verification
@@ -72,27 +72,27 @@ Imagine managing 50+ client websites when suddenly 5 websites go down simultaneo
 
 ---
 
-## 🆕 **What's New in v1.0.8**
+## 🆕 **What's New in v1.0.9**
 
-### 🛠️ **Critical Fixes & Stability**
-- ✅ **FIXED**: Fatal plugin activation errors - Plugin sekarang bisa diaktifkan tanpa error
-- ✅ **FIXED**: "Website URL not found" AJAX errors di admin interface  
-- ✅ **FIXED**: CPT Domain Monitoring field yang tidak berfungsi
-- ✅ **FIXED**: JavaScript conflicts yang menyebabkan admin error
-- ✅ **IMPROVED**: Plugin initialization dengan error handling yang lebih baik
+### ✨ **Domain Monitoring Enhancements**
+- ✅ **NEW**: Tombol "Click Enable Domain Expiry Monitoring" untuk aktivasi pemantauan domain
+- ✅ **NEW**: AJAX handler untuk pemeriksaan domain secara real-time
+- ✅ **NEW**: Tampilan status pemeriksaan domain yang lebih informatif
+- ✅ **IMPROVED**: Instruksi yang lebih jelas pada checkbox pemantauan domain
 
-### 🔧 **Enhanced Performance**
-- ⚡ **OPTIMIZED**: Admin table rendering untuk performance yang lebih baik
-- ⚡ **IMPROVED**: AJAX handler security dan validation
-- ⚡ **ENHANCED**: Plugin activation/deactivation workflow
-- ⚡ **STRENGTHENED**: Admin interface reliability dan error handling
+### 🔧 **Performance & Reliability**
+- ⚡ **OPTIMIZED**: Penyimpanan tanggal kedaluwarsa domain yang lebih efisien
+- ⚡ **ENHANCED**: Cron job untuk pemeriksaan domain 30 hari sebelum kedaluwarsa
+- ⚡ **FIXED**: Masalah pada handler AJAX untuk pemantauan domain
+- ⚡ **FIXED**: Masalah pada penghentian cron pemeriksaan WHOIS
 
-### 📚 **Better Documentation**
-- 📖 **UPDATED**: Enhanced code documentation dengan inline comments
-- 📖 **IMPROVED**: Error handling documentation untuk debugging
-- 📖 **CLEANER**: Simplified admin UI untuk prevent conflicts
+### 🔒 **Security & Documentation**
+- 🛡️ **IMPROVED**: Validasi input pada form pemantauan domain
+- 🛡️ **ADDED**: Nonce untuk verifikasi permintaan AJAX
+- 📖 **UPDATED**: Dokumentasi kode yang lebih lengkap
+- 📖 **NEW**: Panduan pengguna yang diperbarui untuk fitur pemantauan domain
 
-> **🚨 Breaking Changes**: Removed experimental domain expiry enable buttons untuk ensure stability dan compatibility dengan WordPress core CPT system.
+> **💡 Pro Tip**: Aktifkan pemantauan domain untuk semua website penting Anda dan periksa dashboard secara berkala untuk melihat status domain.
 
 ---
 

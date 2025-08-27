@@ -330,7 +330,7 @@ class MMWM_Domain_Checker implements MMWM_Domain_Checker_Interface
         $api_key = get_option('mmwm_whoisxml_api_key', '');
         
         if (empty($api_key)) {
-            return ['success' => false, 'error' => 'WHOIS API key not configured'];
+            return ['success' => false, 'error' => 'WHOIS API key not configured', 'whois_url' => $this->get_public_whois_url($domain)];
         }
         
         $api_url = 'https://www.whoisxmlapi.com/whoisserver/WhoisService';
@@ -537,5 +537,28 @@ class MMWM_Domain_Checker implements MMWM_Domain_Checker_Interface
             'ca' => 'whois.cira.ca',
             'id' => 'whois.id',
         ];
+    }
+    
+    /**
+     * Get public WHOIS lookup URL for a domain
+     * 
+     * @param string $domain Domain name
+     * @return string Public WHOIS URL
+     */
+    public function get_public_whois_url($domain)
+    {
+        // Sanitize domain for URL
+        $domain = trim(preg_replace('/[^a-z0-9\-\.]/i', '', $domain));
+        
+        // List of popular WHOIS lookup services
+        $whois_services = [
+            'https://www.whois.com/whois/',
+            'https://who.is/whois/',
+            'https://lookup.icann.org/en/lookup?q=',
+            'https://www.godaddy.com/whois/results.aspx?domain='
+        ];
+        
+        // Use the first service by default
+        return $whois_services[0] . $domain;
     }
 }

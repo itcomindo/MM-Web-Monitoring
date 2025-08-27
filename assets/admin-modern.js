@@ -1,5 +1,5 @@
 /**
- * MM Web Monitoring - Modern Admin JavaScript v1.0.8
+ * MM Web Monitoring - Modern Admin JavaScript v1.0.9
  */
 
 jQuery(document).ready(function ($) {
