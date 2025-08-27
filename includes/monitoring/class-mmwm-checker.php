@@ -29,7 +29,7 @@ class MMWM_Checker implements MMWM_Checker_Interface
         }
 
         // Use custom user agent if defined, otherwise fallback to default
-        $user_agent = defined('MMWM_USER_AGENT') ? MMWM_USER_AGENT : 'Mozilla/5.0 (compatible; MM-Web-Monitoring/1.0.8; WordPress)';
+        $user_agent = defined('MMWM_USER_AGENT') ? MMWM_USER_AGENT : 'Mozilla/5.0 (compatible; MM-Web-Monitoring/1.0.9; WordPress)';
 
         $args = [
             'timeout'     => 30,
