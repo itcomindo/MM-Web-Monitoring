@@ -29,6 +29,7 @@ class MMWM_Admin
         register_setting('mmwm_global_options', 'mmwm_global_check_enabled', array('sanitize_callback' => 'intval'));
         register_setting('mmwm_global_options', 'mmwm_global_check_frequency', array('sanitize_callback' => 'intval'));
         register_setting('mmwm_global_options', 'mmwm_custom_user_agent_enabled', array('sanitize_callback' => 'intval'));
+        register_setting('mmwm_global_options', 'mmwm_whoisxml_api_key', array('sanitize_callback' => 'sanitize_text_field'));
 
         add_settings_section(
             'mmwm_main_settings_section',
@@ -42,6 +43,20 @@ class MMWM_Admin
             array($this, 'render_default_email_field'),
             'mmwm-global-options',
             'mmwm_main_settings_section'
+        );
+        
+        add_settings_section(
+            'mmwm_api_settings_section',
+            __('API Settings', 'mm-web-monitoring'),
+            null,
+            'mmwm-global-options'
+        );
+        add_settings_field(
+            'mmwm_whoisxml_api_key',
+            __('WHOISXML API Key', 'mm-web-monitoring'),
+            array($this, 'render_whoisxml_api_key_field'),
+            'mmwm-global-options',
+            'mmwm_api_settings_section'
         );
 
         add_settings_section(
@@ -97,6 +112,13 @@ class MMWM_Admin
         $email = get_option('mmwm_default_email', get_option('admin_email'));
         echo '<input type="email" name="mmwm_default_email" value="' . esc_attr($email) . '" class="regular-text" />';
         echo '<p class="description">' . __('This email will be used as a default if a monitoring website does not have a specific email address set.', 'mm-web-monitoring') . '</p>';
+    }
+    
+    public function render_whoisxml_api_key_field()
+    {
+        $api_key = get_option('mmwm_whoisxml_api_key', '');
+        echo '<input type="text" name="mmwm_whoisxml_api_key" value="' . esc_attr($api_key) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Enter your WHOISXML API key for domain expiration checking. Get your API key at <a href="https://www.whoisxmlapi.com" target="_blank">whoisxmlapi.com</a>', 'mm-web-monitoring') . '</p>';
     }
 
     public function render_global_options_page()
@@ -427,6 +449,18 @@ class MMWM_Admin
                                         <span class="mmwm-slider"></span>
                                     </label>
                                     <div id="user-agent-status" style="margin-top: 10px;"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- WHOISXML API Key -->
+                            <div class="mmwm-form-row">
+                                <div class="mmwm-form-label">
+                                    <label for="mmwm_whoisxml_api_key"><?php _e('WHOISXML API Key', 'mm-web-monitoring'); ?></label>
+                                    <p class="description"><?php _e('Enter your WHOISXML API key for domain expiration checking', 'mm-web-monitoring'); ?></p>
+                                </div>
+                                <div class="mmwm-form-control">
+                                    <input type="text" id="mmwm_whoisxml_api_key" name="mmwm_whoisxml_api_key" value="<?php echo esc_attr(get_option('mmwm_whoisxml_api_key', '')); ?>" class="regular-text" />
+                                    <p class="description"><?php _e('Get your API key at <a href="https://www.whoisxmlapi.com" target="_blank">whoisxmlapi.com</a>', 'mm-web-monitoring'); ?></p>
                                 </div>
                             </div>
 

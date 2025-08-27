@@ -66,6 +66,60 @@ class MMWM_CPT
             <p><strong>Status:</strong> <span id="mmwm-current-status"><?php echo esc_html($last_status ?: 'Not yet checked'); ?></span></p>
             <p><strong>Last Check:</strong> <span id="mmwm-last-check"><?php echo $last_check_timestamp ? human_time_diff($last_check_timestamp) . ' ago' : 'N/A'; ?></span></p>
         </div>
+        
+        <script type="text/javascript">
+        jQuery(document).ready(function($) {
+            $('#mmwm-enable-domain-monitoring').on('click', function() {
+                var button = $(this);
+                var spinner = button.next('.spinner');
+                var postId = <?php echo $post->ID; ?>;
+                
+                // Disable button and show spinner
+                button.prop('disabled', true);
+                spinner.css('visibility', 'visible');
+                
+                // Send AJAX request
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'mmwm_enable_domain_monitoring',
+                        post_id: postId,
+                        nonce: '<?php echo wp_create_nonce("mmwm_enable_domain_monitoring_nonce"); ?>'
+                    },
+                    success: function(response) {
+                        // Hide spinner
+                        spinner.css('visibility', 'hidden');
+                        
+                        if (response.success) {
+                            // Replace button with success message
+                            button.replaceWith('<div class="notice notice-success inline"><p>' + response.data.message + '</p></div>');
+                            
+                            // If manual input is needed, show the date picker
+                            if (response.data.need_manual_input) {
+                                $('.mmwm-domain-check-failed').show();
+                            } else {
+                                // Update expiry date display
+                                if (response.data.expiry_date) {
+                                    $('.mmwm-domain-expiry-info').html(response.data.expiry_date).show();
+                                }
+                            }
+                        } else {
+                            // Show error message and re-enable button
+                            button.after('<div class="notice notice-error inline"><p>' + response.data.message + '</p></div>');
+                            button.prop('disabled', false);
+                        }
+                    },
+                    error: function() {
+                        // Hide spinner, show error message and re-enable button
+                        spinner.css('visibility', 'hidden');
+                        button.after('<div class="notice notice-error inline"><p><?php _e("Error checking domain. Please try again.", "mm-web-monitoring"); ?></p></div>');
+                        button.prop('disabled', false);
+                    }
+                });
+            });
+        });
+        </script>
     <?php
     }
 
@@ -286,13 +340,26 @@ class MMWM_CPT
                         <?php _e('Enable domain expiration monitoring', 'mm-web-monitoring'); ?>
                     </label>
                     <p class="description"><?php _e('Monitor domain registration expiration and receive alerts 10 days before expiry.', 'mm-web-monitoring'); ?></p>
+                    <p class="description" style="color: #0073aa; font-style: italic;">
+                        <?php _e('After enabling, please click Update/Publish to save your changes first.', 'mm-web-monitoring'); ?>
+                    </p>
 
                     <?php if ($domain_monitoring_enabled === '1' && $post->ID): ?>
                         <?php
                         $domain_expiry_date = get_post_meta($post->ID, '_mmwm_domain_expiry_date', true);
                         $domain_days_until_expiry = get_post_meta($post->ID, '_mmwm_domain_days_until_expiry', true);
                         $domain_last_check = get_post_meta($post->ID, '_mmwm_domain_last_check', true);
+                        $domain_monitoring_status = get_post_meta($post->ID, '_mmwm_domain_monitoring_status', true);
                         ?>
+                        
+                        <?php if (empty($domain_last_check) && empty($domain_monitoring_status)): ?>
+                            <div style="margin-top: 15px;">
+                                <button type="button" class="button button-primary" id="mmwm-enable-domain-monitoring">
+                                    <?php _e('Click Enable Domain Expiry Monitoring', 'mm-web-monitoring'); ?>
+                                </button>
+                                <span class="spinner" style="float:none;"></span>
+                            </div>
+                        <?php endif; ?>
 
                         <?php if ($domain_error && !$manual_override): ?>
                             <div style="margin-top: 10px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
@@ -752,6 +819,16 @@ class MMWM_CPT
         $domain_monitoring_enabled = isset($_POST['mmwm_domain_monitoring_enabled']) ? '1' : '0';
         $old_domain_monitoring = get_post_meta($post_id, '_mmwm_domain_monitoring_enabled', true);
         update_post_meta($post_id, '_mmwm_domain_monitoring_enabled', $domain_monitoring_enabled);
+        
+        // If domain monitoring was enabled but now disabled, clear scheduled events
+        if ($old_domain_monitoring === '1' && $domain_monitoring_enabled === '0') {
+            // Clear any scheduled domain expiry notifications
+            wp_clear_scheduled_hook('mmwm_domain_expiry_notification', array($post_id));
+            
+            // Reset domain monitoring status
+            update_post_meta($post_id, '_mmwm_domain_monitoring_status', '');
+            update_post_meta($post_id, '_mmwm_domain_last_check', '');
+        }
 
         // Handle manual domain expiry date if provided
         if (isset($_POST['mmwm_manual_domain_expiry']) && !empty($_POST['mmwm_manual_domain_expiry'])) {
@@ -764,6 +841,20 @@ class MMWM_CPT
                 $days_diff = floor((strtotime($manual_date) - time()) / (60 * 60 * 24));
                 update_post_meta($post_id, '_mmwm_domain_days_until_expiry', $days_diff);
                 update_post_meta($post_id, '_mmwm_domain_error', '');
+                
+                // Schedule notification for domain expiry
+                if ($domain_monitoring_enabled === '1') {
+                    $expiry_timestamp = strtotime($manual_date);
+                    $notification_timestamp = $expiry_timestamp - (10 * 86400); // 10 days before expiry
+                    
+                    // Clear any existing scheduled notifications
+                    wp_clear_scheduled_hook('mmwm_domain_expiry_notification', array($post_id));
+                    
+                    // Only schedule if notification date is in the future
+                    if ($notification_timestamp > time()) {
+                        wp_schedule_single_event($notification_timestamp, 'mmwm_domain_expiry_notification', array($post_id));
+                    }
+                }
             }
         }
 

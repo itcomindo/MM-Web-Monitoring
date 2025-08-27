@@ -20,6 +20,10 @@ class MMWM_Cron
     public function __construct()
     {
         // Use lazy loading to avoid dependency issues
+        add_action('mmwm_check_domain_expiry', array($this, 'check_domain_expiry'));
+        add_action('wp_ajax_mmwm_run_check_now', array($this, 'handle_ajax_run_check_now'));
+        add_action('wp_ajax_mmwm_enable_domain_monitoring', array($this, 'handle_ajax_enable_domain_monitoring'));
+        add_action('mmwm_domain_expiry_notification', array($this, 'send_domain_expiring_notification_by_id'));
     }
 
     /**
@@ -356,6 +360,36 @@ class MMWM_Cron
             }
         }
     }
+    
+    /**
+     * Send domain expiring notification by post ID (for scheduled notifications)
+     */
+    public function send_domain_expiring_notification_by_id($post_id)
+    {
+        // Check if domain monitoring is still enabled
+        $domain_monitoring_enabled = get_post_meta($post_id, '_mmwm_domain_monitoring_enabled', true);
+        if ($domain_monitoring_enabled !== '1') {
+            return;
+        }
+        
+        // Get domain expiry data
+        $domain_expiry_date = get_post_meta($post_id, '_mmwm_domain_expiry_date', true);
+        $days_until_expiry = get_post_meta($post_id, '_mmwm_domain_days_until_expiry', true);
+        $url = get_post_meta($post_id, '_mmwm_target_url', true);
+        $root_domain = parse_url($url, PHP_URL_HOST);
+        $registrar = get_post_meta($post_id, '_mmwm_domain_registrar', true) ?: 'Unknown';
+        
+        // Prepare domain result data
+        $domain_result = array(
+            'root_domain' => $root_domain,
+            'days_until_expiry' => $days_until_expiry,
+            'expiry_date' => $domain_expiry_date,
+            'registrar' => $registrar
+        );
+        
+        // Send notification
+        $this->send_domain_expiring_notification($post_id, $domain_result);
+    }
 
     public function run_checks()
     {
@@ -491,5 +525,75 @@ class MMWM_Cron
             }
         }
         wp_send_json_error(['message' => 'Invalid data.']);
+    }
+    
+    /**
+     * Handle AJAX request to enable domain monitoring
+     */
+    public function handle_ajax_enable_domain_monitoring()
+    {
+        // Verify nonce
+        check_ajax_referer('mmwm_enable_domain_monitoring_nonce', 'nonce');
+        
+        // Check permissions
+        if (!current_user_can('edit_posts')) {
+            wp_send_json_error(['message' => __('Permission denied.', 'mm-web-monitoring')]);
+            return;
+        }
+        
+        // Get post ID
+        if (!isset($_POST['post_id'])) {
+            wp_send_json_error(['message' => __('Invalid Post ID.', 'mm-web-monitoring')]);
+            return;
+        }
+        
+        $post_id = intval($_POST['post_id']);
+        $url = get_post_meta($post_id, '_mmwm_target_url', true);
+        
+        if (empty($url)) {
+            wp_send_json_error(['message' => __('No URL found for this website.', 'mm-web-monitoring')]);
+            return;
+        }
+        
+        // Check domain expiration
+        $domain_checker = new MMWM_Domain_Checker();
+        $result = $domain_checker->check_domain_expiration($url);
+        
+        // Update last check time
+        update_post_meta($post_id, '_mmwm_domain_last_check', time());
+        update_post_meta($post_id, '_mmwm_domain_monitoring_status', 'active');
+        
+        if ($result['success']) {
+            // Save domain expiration data
+            update_post_meta($post_id, '_mmwm_domain_expiry_date', $result['expiry_date']);
+            update_post_meta($post_id, '_mmwm_domain_days_until_expiry', $result['days_until_expiry']);
+            update_post_meta($post_id, '_mmwm_domain_error', '');
+            update_post_meta($post_id, '_mmwm_domain_manual_override', '0');
+            
+            // Schedule cron job for 30 days before expiry
+            $expiry_timestamp = strtotime($result['expiry_date']);
+            $notification_timestamp = $expiry_timestamp - (30 * 86400); // 30 days before expiry
+            
+            // Only schedule if notification date is in the future
+            if ($notification_timestamp > time()) {
+                wp_schedule_single_event($notification_timestamp, 'mmwm_domain_expiry_notification', array($post_id));
+            }
+            
+            // Send success response
+            wp_send_json_success([
+                'message' => __('Domain expiry monitoring is enabled.', 'mm-web-monitoring'),
+                'expiry_date' => date_i18n(get_option('date_format'), strtotime($result['expiry_date'])),
+                'days_until_expiry' => $result['days_until_expiry'],
+                'need_manual_input' => false
+            ]);
+        } else {
+            // Save error and request manual input
+            update_post_meta($post_id, '_mmwm_domain_error', $result['error']);
+            
+            wp_send_json_success([
+                'message' => __('Could not automatically detect domain expiry date. Please enter it manually.', 'mm-web-monitoring'),
+                'need_manual_input' => true
+            ]);
+        }
     }
 }

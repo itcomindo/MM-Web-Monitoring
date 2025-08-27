@@ -227,7 +227,10 @@ class MMWM_Domain_Checker implements MMWM_Domain_Checker_Interface
 
                 if ($domain_suffix === $suffix) {
                     // Found matching suffix, return domain + suffix
-                    return $parts[-$suffix_count - 1] . '.' . $suffix;
+                    $domain_index = $num_parts - $suffix_count - 1;
+                    if ($domain_index >= 0 && isset($parts[$domain_index])) {
+                        return $parts[$domain_index] . '.' . $suffix;
+                    }
                 }
             }
         }
@@ -316,17 +319,99 @@ class MMWM_Domain_Checker implements MMWM_Domain_Checker_Interface
     }
 
     /**
-     * Try WHOIS API (simplified example)
+     * Try WHOIS API using WHOISXML API service
      *
      * @param string $domain Domain name
      * @return array Result
      */
     private function try_whois_api($domain)
     {
-        // This is a placeholder - you would implement actual API calls here
-        // Popular services: whoisapi.net, whois.com, etc.
-
-        return ['success' => false, 'error' => 'WHOIS API not implemented'];
+        // Check if we have the API key in options
+        $api_key = get_option('mmwm_whoisxml_api_key', '');
+        
+        if (empty($api_key)) {
+            return ['success' => false, 'error' => 'WHOIS API key not configured'];
+        }
+        
+        $api_url = 'https://www.whoisxmlapi.com/whoisserver/WhoisService';
+        $request_url = add_query_arg([
+            'apiKey' => $api_key,
+            'domainName' => $domain,
+            'outputFormat' => 'JSON'
+        ], $api_url);
+        
+        // Use cURL directly with longer timeout for better reliability
+        if (function_exists('curl_init')) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $request_url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30); // 30 seconds timeout
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            
+            $body = curl_exec($ch);
+            $error = curl_error($ch);
+            $info = curl_getinfo($ch);
+            curl_close($ch);
+            
+            if ($error) {
+                return ['success' => false, 'error' => 'WHOIS API request failed: ' . $error];
+            }
+            
+            if ($info['http_code'] !== 200) {
+                return ['success' => false, 'error' => 'WHOIS API returned error code: ' . $info['http_code']];
+            }
+        } else {
+            // Fallback to wp_remote_get if cURL is not available
+            $response = wp_remote_get($request_url, [
+                'timeout' => 30, // Increased timeout
+                'sslverify' => true,
+            ]);
+            
+            if (is_wp_error($response)) {
+                return ['success' => false, 'error' => 'WHOIS API request failed: ' . $response->get_error_message()];
+            }
+            
+            $response_code = wp_remote_retrieve_response_code($response);
+            if ($response_code !== 200) {
+                return ['success' => false, 'error' => 'WHOIS API returned error code: ' . $response_code];
+            }
+            
+            $body = wp_remote_retrieve_body($response);
+        }
+        
+        $data = json_decode($body, true);
+        
+        if (empty($data) || !isset($data['WhoisRecord'])) {
+            return ['success' => false, 'error' => 'Invalid WHOIS API response format'];
+        }
+        
+        $whois_record = $data['WhoisRecord'];
+        
+        // Extract expiry date
+        $expiry_date = null;
+        $registrar = null;
+        
+        if (isset($whois_record['registryData']['expiresDate'])) {
+            $expiry_date = $whois_record['registryData']['expiresDate'];
+        } elseif (isset($whois_record['expiresDate'])) {
+            $expiry_date = $whois_record['expiresDate'];
+        } elseif (isset($whois_record['expiresDateNormalized'])) {
+            $expiry_date = $whois_record['expiresDateNormalized'];
+        }
+        
+        if (isset($whois_record['registrarName'])) {
+            $registrar = $whois_record['registrarName'];
+        }
+        
+        if ($expiry_date) {
+            return [
+                'success' => true,
+                'expiry_date' => date('Y-m-d H:i:s', strtotime($expiry_date)),
+                'registrar' => $registrar ?: 'Unknown'
+            ];
+        }
+        
+        return ['success' => false, 'error' => 'Could not extract expiration date from API response'];
     }
 
     /**
