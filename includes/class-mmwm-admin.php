@@ -435,6 +435,27 @@ class MMWM_Admin
                                         </select>
                                     </div>
                                 </div>
+                                
+                                <!-- External Cron Trigger -->
+                                <div class="mmwm-form-row">
+                                    <div class="mmwm-form-label">
+                                        <label><?php _e('External Cron Trigger', 'mm-web-monitoring'); ?></label>
+                                        <p class="description"><?php _e('Use this URL to trigger cron checks from external services like Cron-Job.org or EasyCron', 'mm-web-monitoring'); ?></p>
+                                    </div>
+                                    <div class="mmwm-form-control">
+                                        <?php
+                                        $cron_key = get_option('mmwm_cron_security_key');
+                                        if (empty($cron_key)) {
+                                            $cron_key = wp_generate_password(32, false);
+                                            update_option('mmwm_cron_security_key', $cron_key);
+                                        }
+                                        $cron_url = home_url('mmwm-cron-trigger/' . $cron_key);
+                                        ?>
+                                        <input type="text" readonly value="<?php echo esc_url($cron_url); ?>" class="regular-text" onclick="this.select();" style="width: 100%;" />
+                                        <p class="description"><?php _e('Set up an external cron job to call this URL every 5-15 minutes to ensure monitoring continues even when your site has no visitors.', 'mm-web-monitoring'); ?></p>
+                                        <button type="button" class="button" id="mmwm-regenerate-cron-key"><?php _e('Regenerate Key', 'mm-web-monitoring'); ?></button>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Custom User Agent -->
@@ -477,6 +498,47 @@ class MMWM_Admin
         <script>
             function toggleGlobalCheckOptions(enabled) {
                 document.getElementById('global-check-options').style.display = enabled ? 'block' : 'none';
+            
+            // Regenerate Cron Key
+            jQuery(document).ready(function($) {
+                $('#mmwm-regenerate-cron-key').on('click', function() {
+                    if (!confirm('<?php _e("Are you sure you want to regenerate the cron security key? You will need to update any external cron jobs with the new URL.", "mm-web-monitoring"); ?>')) {
+                        return;
+                    }
+                    
+                    var $button = $(this);
+                    var $urlField = $button.prev().prev().prev();
+                    var $successNotice = $('#success-notice');
+                    var $errorNotice = $('#error-notice');
+                    
+                    $button.prop('disabled', true).text('<?php _e("Regenerating...", "mm-web-monitoring"); ?>');
+                    $successNotice.hide();
+                    $errorNotice.hide();
+                    
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'mmwm_regenerate_cron_key',
+                            nonce: '<?php echo wp_create_nonce("mmwm_ajax_nonce"); ?>'
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                $urlField.val(response.data.url);
+                                $successNotice.text(response.data.message).show();
+                            } else {
+                                $errorNotice.text(response.data.message || '<?php _e("An error occurred while regenerating the cron key.", "mm-web-monitoring"); ?>').show();
+                            }
+                        },
+                        error: function() {
+                            $errorNotice.text('<?php _e("An error occurred while regenerating the cron key.", "mm-web-monitoring"); ?>').show();
+                        },
+                        complete: function() {
+                            $button.prop('disabled', false).text('<?php _e("Regenerate Key", "mm-web-monitoring"); ?>');
+                        }
+                    });
+                });
+            });
             }
 
             function showNotice(message, type) {
@@ -516,6 +578,19 @@ class MMWM_Admin
                     }
                 });
             }
+            
+            // Fungsi untuk menampilkan notifikasi
+            function showNotice(message, type) {
+                var noticeElement = $('#' + type + '-notice');
+                noticeElement.html(message).show();
+                setTimeout(function() {
+                    noticeElement.fadeOut();
+                }, 5000);
+            }
+            
+            jQuery(document).ready(function($) {
+                // Kode untuk regenerasi kunci cron sudah ditambahkan di bagian atas
+            });
         </script>
     <?php
     }
@@ -1064,6 +1139,23 @@ class MMWM_Admin
                 break;
             case 'last_check':
                 $last_check_timestamp = get_post_meta($post_id, '_mmwm_last_check', true);
+                
+                // Periksa kesehatan cron
+                $cron_health = get_option('mmwm_cron_health_check', 'active');
+                $last_cron_run = get_option('mmwm_last_cron_run', 0);
+                $current_time = time();
+                $time_diff = $current_time - $last_cron_run;
+                
+                // Jika cron tidak berjalan selama lebih dari 15 menit, perbarui tampilan
+                if ($time_diff > 900 && $cron_health !== 'active') {
+                    // Perbarui last_check secara manual jika diperlukan
+                    if (empty($last_check_timestamp) || ($current_time - $last_check_timestamp > 900)) {
+                        // Jalankan pemeriksaan manual untuk situs ini
+                        do_action('mmwm_scheduled_check_event');
+                        $last_check_timestamp = get_post_meta($post_id, '_mmwm_last_check', true);
+                    }
+                }
+                
                 echo $last_check_timestamp ? sprintf('<span title="%s">%s</span>', esc_attr(wp_date('Y-m-d H:i:s', $last_check_timestamp)), esc_html(human_time_diff($last_check_timestamp) . ' ago')) : 'N/A';
                 break;
             case 'next_check':
@@ -1072,11 +1164,41 @@ class MMWM_Admin
                     echo 'Inactive';
                     break;
                 }
+                
+                // Periksa kesehatan cron
+                $cron_health = get_option('mmwm_cron_health_check', 'active');
+                $last_cron_run = get_option('mmwm_last_cron_run', 0);
+                $current_time = time();
+                $time_diff = $current_time - $last_cron_run;
+                
+                // Jika cron tidak berjalan selama lebih dari 15 menit, coba perbaiki
+                if ($time_diff > 900 && $cron_health !== 'active') {
+                    // Jadwalkan ulang cron jika diperlukan
+                    wp_clear_scheduled_hook('mmwm_scheduled_check_event');
+                    wp_schedule_event(time(), 'every_five_minutes', 'mmwm_scheduled_check_event');
+                    update_option('mmwm_cron_health_check', 'fixed');
+                }
+                
                 $scheduler = new MMWM_Scheduler();
                 $next_check_timestamp = $scheduler->get_next_check_time($post_id);
+                
+                // Jika next_check_timestamp tidak valid, hitung ulang
+                if (!$next_check_timestamp || $next_check_timestamp < $current_time) {
+                    // Ambil interval pemeriksaan
+                    $interval = get_post_meta($post_id, '_mmwm_monitoring_interval', true) ?: '15min';
+                    $last_check = get_post_meta($post_id, '_mmwm_last_check', true) ?: $current_time;
+                    
+                    // Hitung waktu pemeriksaan berikutnya
+                    $next_check_timestamp = $scheduler->calculate_next_check($last_check, $interval);
+                    
+                    // Jika waktu pemeriksaan berikutnya sudah lewat, jadwalkan untuk segera
+                    if ($next_check_timestamp <= $current_time) {
+                        $next_check_timestamp = $current_time;
+                    }
+                }
 
                 if ($next_check_timestamp) {
-                    $time_diff = $next_check_timestamp - time();
+                    $time_diff = $next_check_timestamp - $current_time;
                     if ($time_diff <= 0) {
                         echo '<span class="mmwm-next-check">Due now</span>';
                     } else {
@@ -1656,5 +1778,33 @@ class MMWM_Admin
             wp_send_json_error(['message' => 'Invalid action.']);
         }
         wp_send_json_success(['message' => $response_message]);
+    }
+    
+    /**
+     * AJAX handler for regenerating cron security key
+     */
+    public function ajax_regenerate_cron_key()
+    {
+        check_ajax_referer('mmwm_ajax_nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('You do not have permission to perform this action.', 'mm-web-monitoring')]);
+            return;
+        }
+        
+        // Generate new key
+        $new_key = wp_generate_password(32, false);
+        update_option('mmwm_cron_security_key', $new_key);
+        
+        // Generate new URL
+        $cron_url = home_url('mmwm-cron-trigger/' . $new_key);
+        
+        // Flush rewrite rules to ensure the endpoint works
+        flush_rewrite_rules();
+        
+        wp_send_json_success([
+            'message' => __('Cron security key regenerated successfully.', 'mm-web-monitoring'),
+            'url' => $cron_url
+        ]);
     }
 }

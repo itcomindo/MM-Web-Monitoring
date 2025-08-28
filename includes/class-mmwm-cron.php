@@ -24,6 +24,9 @@ class MMWM_Cron
         add_action('wp_ajax_mmwm_run_check_now', array($this, 'handle_ajax_run_check_now'));
         add_action('wp_ajax_mmwm_enable_domain_monitoring', array($this, 'handle_ajax_enable_domain_monitoring'));
         add_action('mmwm_domain_expiry_notification', array($this, 'send_domain_expiring_notification_by_id'));
+        
+        // Tambahkan hook untuk memeriksa kesehatan cron
+        add_action('admin_init', array($this, 'check_cron_health'));
     }
 
     /**
@@ -189,6 +192,39 @@ class MMWM_Cron
             wp_schedule_single_event($next_run, 'mmwm_daily_global_check_event');
         }
         // For daily frequency, WordPress cron will handle the recurring schedule
+    }
+    
+    /**
+     * Check cron health and fix if needed
+     */
+    public function check_cron_health()
+    {
+        // Hanya jalankan pemeriksaan ini di halaman admin plugin
+        $screen = get_current_screen();
+        if (!$screen || strpos($screen->id, 'mmwm') === false) {
+            return;
+        }
+        
+        // Periksa kapan terakhir kali cron dijalankan
+        $last_run = get_option('mmwm_last_cron_run', 0);
+        $current_time = time();
+        $time_diff = $current_time - $last_run;
+        
+        // Jika cron tidak berjalan selama lebih dari 15 menit (3x interval default 5 menit)
+        if ($time_diff > 900) {
+            // Cron mungkin tidak berjalan dengan benar, coba jadwalkan ulang
+            wp_clear_scheduled_hook('mmwm_scheduled_check_event');
+            wp_schedule_event(time(), 'every_five_minutes', 'mmwm_scheduled_check_event');
+            
+            // Perbarui status cron health
+            update_option('mmwm_cron_health_check', 'fixed');
+            
+            // Jalankan pemeriksaan secara manual untuk memperbarui data
+            $this->run_checks();
+        } else {
+            // Cron berjalan dengan baik
+            update_option('mmwm_cron_health_check', 'active');
+        }
     }
 
     /**
@@ -394,6 +430,9 @@ class MMWM_Cron
 
     public function run_checks()
     {
+        // Update last cron run time
+        update_option('mmwm_last_cron_run', time());
+        
         // Use the new scheduler for better performance and modularity
         return $this->get_scheduler()->schedule_checks();
     }

@@ -71,6 +71,12 @@ class MMWM_Core
 
         // Schedule daily global check on plugin activation
         add_action('init', array($cron_handler, 'schedule_daily_global_check'));
+        
+        // Tambahkan endpoint untuk external cron trigger
+        add_action('init', array('MMWM_Core', 'register_cron_endpoint'));
+        
+        // Tambahkan hook untuk menangani external cron trigger
+        add_action('template_redirect', array('MMWM_Core', 'handle_cron_endpoint'));
 
         $admin_handler = new MMWM_Admin();
         // Global options page
@@ -98,6 +104,7 @@ class MMWM_Core
         add_action('wp_ajax_mmwm_bulk_add_sites', array($admin_handler, 'handle_ajax_bulk_add'));
         add_action('wp_ajax_mmwm_bulk_action_handler', array($admin_handler, 'handle_ajax_bulk_action'));
         add_action('wp_ajax_mmwm_toggle_user_agent', array($admin_handler, 'handle_ajax_toggle_user_agent'));
+        add_action('wp_ajax_mmwm_regenerate_cron_key', array($admin_handler, 'ajax_regenerate_cron_key'));
     }
 
     public function run()
@@ -108,15 +115,73 @@ class MMWM_Core
 
     public static function activate()
     {
+        // Pastikan event cron terjadwal dengan benar
         if (! wp_next_scheduled('mmwm_scheduled_check_event')) {
             wp_schedule_event(time(), 'every_five_minutes', 'mmwm_scheduled_check_event');
         }
+        
+        // Tambahkan opsi untuk memastikan cron berjalan
+        add_option('mmwm_last_cron_run', time());
+        add_option('mmwm_cron_health_check', 'active');
+        
         flush_rewrite_rules();
     }
 
     public static function deactivate()
     {
         wp_clear_scheduled_hook('mmwm_scheduled_check_event');
+        wp_clear_scheduled_hook('mmwm_daily_global_check_event');
         flush_rewrite_rules();
+    }
+    
+    /**
+     * Register custom endpoint for external cron trigger
+     */
+    public static function register_cron_endpoint()
+    {
+        add_rewrite_rule(
+            'mmwm-cron-trigger/([a-zA-Z0-9]+)/?$',
+            'index.php?mmwm_cron_trigger=$matches[1]',
+            'top'
+        );
+        add_rewrite_tag('%mmwm_cron_trigger%', '([a-zA-Z0-9]+)');
+    }
+    
+    /**
+     * Handle external cron trigger request
+     */
+    public static function handle_cron_endpoint()
+    {
+        $cron_key = get_query_var('mmwm_cron_trigger');
+        if (!empty($cron_key)) {
+            // Verifikasi kunci keamanan
+            $stored_key = get_option('mmwm_cron_security_key');
+            
+            // Jika kunci belum ada, buat kunci baru
+            if (empty($stored_key)) {
+                $stored_key = wp_generate_password(32, false);
+                update_option('mmwm_cron_security_key', $stored_key);
+            }
+            
+            // Verifikasi kunci yang diberikan
+            if ($cron_key === $stored_key) {
+                // Jalankan pemeriksaan
+                do_action('mmwm_scheduled_check_event');
+                
+                // Perbarui waktu cron terakhir
+                update_option('mmwm_last_cron_run', time());
+                update_option('mmwm_cron_health_check', 'active');
+                
+                // Kirim respons dan hentikan eksekusi
+                header('Content-Type: application/json');
+                echo json_encode(array('status' => 'success', 'message' => 'Cron triggered successfully'));
+                exit;
+            } else {
+                // Kunci tidak valid
+                header('Content-Type: application/json');
+                echo json_encode(array('status' => 'error', 'message' => 'Invalid security key'));
+                exit;
+            }
+        }
     }
 }
